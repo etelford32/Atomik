@@ -1,0 +1,1088 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atomik - Celestial Tracking App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #0e0f1a;
+            color: white;
+            overflow-x: hidden;
+            text-align: center;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            width: 100%;
+            height: 100%;
+        }
+
+        header {
+            position: relative;
+            padding: 20px;
+        }
+
+        .logo-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+        }
+        
+        .logo {
+            width: 120px;
+            border-radius: 25px;
+            box-shadow: 0 0 30px rgba(255, 165, 0, 0.6);
+            padding: 10px;
+            background: rgba(20, 20, 30, 0.7);
+            backdrop-filter: blur(5px);
+            margin-top: 20px;
+            position: relative;
+            z-index: 3;
+            transition: all 0.5s ease;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                box-shadow: 0 0 30px rgba(255, 165, 0, 0.6);
+            }
+            50% {
+                transform: translateY(-10px) rotate(2deg);
+                box-shadow: 0 10px 40px rgba(255, 165, 0, 0.8);
+            }
+        }
+        
+        .logo-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 140, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.5);
+            z-index: 2;
+            animation: spin 20s linear infinite;
+        }
+        
+        .logo-ring::before, .logo-ring::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 140, 0, 0.3);
+            box-shadow: 0 0 10px rgba(255, 140, 0, 0.3);
+        }
+        
+        .logo-ring::before {
+            transform: rotate(60deg);
+        }
+        
+        .logo-ring::after {
+            transform: rotate(-60deg);
+        }
+        
+        @keyframes spin {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+        
+        .logo-particles {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .logo-particles::before, .logo-particles::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 140, 0, 0.8);
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.8);
+            animation: orbit 10s linear infinite;
+        }
+        
+        .logo-particles::before {
+            animation-delay: -5s;
+        }
+        
+        @keyframes orbit {
+            0% {
+                transform: rotate(0deg) translateX(70px) rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg) translateX(70px) rotate(-360deg);
+            }
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4rem;
+            margin: 20px 0;
+            background: linear-gradient(to right, #fff 5%, #ff8c00 40%, #ff4500 60%, #fff 95%);
+            background-size: 200% auto;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+            text-shadow: 0 0 20px rgba(255, 140, 0, 0.7), 0 0 30px rgba(255, 70, 0, 0.5);
+            position: relative;
+            z-index: 1;
+            animation: shine 4s linear infinite, pulse 3s ease-in-out infinite;
+            letter-spacing: 5px;
+        }
+        
+        @keyframes shine {
+            to {
+                background-position: 200% center;
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                text-shadow: 0 0 20px rgba(255, 140, 0, 0.7), 0 0 30px rgba(255, 70, 0, 0.5);
+            }
+            50% {
+                text-shadow: 0 0 30px rgba(255, 140, 0, 0.9), 0 0 50px rgba(255, 70, 0, 0.7), 0 0 70px rgba(255, 0, 0, 0.3);
+            }
+        }
+        
+        h1::after {
+            content: 'ATOMIK';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            color: transparent;
+            filter: blur(15px);
+            opacity: 0.7;
+            animation: pulseGlow 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulseGlow {
+            0%, 100% {
+                filter: blur(15px);
+                opacity: 0.7;
+            }
+            50% {
+                filter: blur(25px);
+                opacity: 0.9;
+            }
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            margin-top: 10px;
+            animation: fadeIn 2s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feature-container {
+            display: flex;
+            justify-content: center;
+            margin: 50px auto;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 0 20px;
+            max-width: 1200px;
+        }
+
+        .feature-box {
+            width: 250px;
+            padding: 25px;
+            background-color: rgba(20, 20, 40, 0.4);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 
+                        0 0 20px rgba(255, 140, 0, 0.2),
+                        inset 0 0 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .feature-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, 
+                rgba(255, 140, 0, 0) 0%, 
+                rgba(255, 140, 0, 0.1) 50%, 
+                rgba(255, 140, 0, 0) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: -1;
+        }
+
+        .feature-box:hover {
+            transform: translateY(-10px) scale(1.03) rotateX(5deg);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 
+                        0 0 30px rgba(255, 140, 0, 0.5),
+                        inset 0 0 15px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 165, 0, 0.3);
+        }
+        
+        .feature-box:hover::before {
+            opacity: 1;
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+        
+        .feature-box h3 {
+            color: #ff8c00;
+            margin-top: 0;
+            position: relative;
+            display: inline-block;
+            font-size: 1.3rem;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-box:hover h3 {
+            transform: scale(1.05);
+            text-shadow: 0 0 10px rgba(255, 140, 0, 0.8);
+        }
+        
+        .feature-box p {
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-box:hover p {
+            color: #fff;
+        }
+        
+        .feature-box::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 3px;
+            background: linear-gradient(to right, rgba(255, 140, 0, 0), rgba(255, 140, 0, 1), rgba(255, 140, 0, 0));
+            transition: all 0.4s ease;
+            transform: translateX(-50%);
+        }
+        
+        .feature-box:hover::after {
+            width: 80%;
+        }
+        
+        .feature-box.clicked {
+            animation: pulse-click 0.6s ease-out;
+        }
+        
+        @keyframes pulse-click {
+            0% {
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 
+                            0 0 30px rgba(255, 140, 0, 0.5),
+                            inset 0 0 15px rgba(0, 0, 0, 0.3);
+            }
+            50% {
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), 
+                            0 0 50px rgba(255, 140, 0, 0.9),
+                            inset 0 0 20px rgba(0, 0, 0, 0.4);
+            }
+            100% {
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 
+                            0 0 30px rgba(255, 140, 0, 0.5),
+                            inset 0 0 15px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        .signup-form {
+            background-color: rgba(0, 0, 0, 0.5);
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 30px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .signup-form input,
+        .signup-form textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            border: 1px solid transparent;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        .signup-form input:focus,
+        .signup-form textarea:focus {
+            outline: none;
+            border-color: #ff8c00;
+            box-shadow: 0 0 8px rgba(255, 140, 0, 0.6);
+        }
+
+        .error-message {
+            color: #ff4d4d;
+            font-size: 0.8rem;
+            height: 16px;
+            display: block;
+            text-align: left;
+            margin-top: 2px;
+        }
+
+        .signup-form button {
+            padding: 12px 30px;
+            background: linear-gradient(145deg, #ff8c00, #ff6a00);
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .signup-form button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(255, 140, 0, 0.5);
+        }
+
+        .signup-form button:disabled {
+            background: #888;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+
+        .success-message {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transform: scale(0.8);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s ease;
+        }
+
+        .success-message.show {
+            transform: scale(1);
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .success-message h3 {
+            color: #ff8c00;
+            margin-bottom: 15px;
+        }
+
+        .success-message button {
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+                letter-spacing: 3px;
+            }
+            
+            .logo {
+                width: 90px;
+                border-radius: 18px;
+            }
+            
+            .logo-ring {
+                width: 120px;
+                height: 120px;
+            }
+            
+            .feature-box {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="particleCanvas"></canvas>
+
+    <header>
+        <div class="logo-container">
+            <img src="Atomik1.jpg" alt="Atomik Logo" class="logo">
+            <div class="logo-ring"></div>
+            <div class="logo-particles"></div>
+        </div>
+        <h1 data-text="ATOMIK">ATOMIK</h1>
+        <p class="tagline">Advanced celestial tracking and predictive modeling in real-time.</p>
+    </header>
+
+    <section class="feature-container">
+        <div class="feature-box">
+            <h3>Real-Time Planetary Tracking</h3>
+            <p>Track celestial movements and orbital dynamics instantly.</p>
+        </div>
+        <div class="feature-box">
+            <h3>Experience the Solar Clock</h3>
+            <p>Precision Clock based on user location and solar position calculations.</p>
+        </div>
+        <div class="feature-box">
+            <h3>Predictive Models & Analytics</h3>
+            <p>Accurate predictions of solar phenomena and events.</p>
+        </div>
+        <div class="feature-box">
+            <h3>UV & Radiation Alerts</h3>
+            <p>Daily alerts and forecasts for UV intensity and radiation levels.</p>
+        </div>
+        <div class="feature-box">
+            <h3>Storm Prediction</h3>
+            <p>Advanced Flare and storm event predictions with early warnings.</p>
+        </div>
+        <div class="feature-box">
+            <h3>Weather Modeling</h3>
+            <p>Sophisticated atmospheric modeling and weather prediction.</p>
+        </div>
+        <div class="feature-box">
+            <h3>AI Optimized</h3>
+            <p>Leverages cutting-edge AI systems and machine learning models.</p>
+        </div>
+        <div class="feature-box">
+            <h3>User-Friendly</h3>
+            <p>Intuitive UI designed for seamless user experience.</p>
+        </div>
+    </section>
+
+    <section class="signup-form">
+        <h2>Join the Beta</h2>
+        <div class="form-group">
+            <input type="text" id="name" placeholder="Your Name" required>
+            <span class="error-message" id="name-error"></span>
+        </div>
+        <div class="form-group">
+            <input type="email" id="email" placeholder="Your Email" required>
+            <span class="error-message" id="email-error"></span>
+        </div>
+        <div class="form-group">
+            <input type="text" id="company" placeholder="Company">
+            <span class="error-message"></span>
+        </div>
+        <div class="form-group">
+            <input type="tel" id="phone" placeholder="Phone Number">
+            <span class="error-message" id="phone-error"></span>
+        </div>
+        <div class="form-group">
+            <textarea id="comment" placeholder="Feature request or comments" rows="4"></textarea>
+            <span class="error-message"></span>
+        </div>
+        <button id="submit-btn" onclick="validateForm()">
+            <div class="spinner" id="spinner"></div>
+            <span>Sign Up</span>
+        </button>
+
+        <div class="success-message" id="success-message">
+            <h3>Thank You for Joining Atomik Beta!</h3>
+            <p>We'll be in touch with more information soon.</p>
+            <button onclick="dismissSuccess()">Close</button>
+        </div>
+    </section>
+
+    <script>
+        // Canvas setup with resize handling
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+
+        // Particle system variables
+        let particles = [];
+        const particleCount = 1500;
+        let centerX = canvas.width / 2;
+        let centerY = 250;
+        let maxRadius = Math.max(canvas.width, canvas.height) * 0.6;
+        const minRadius = 20;
+        let colorCycle = 0;
+        let speedMultiplier = 1;
+        
+        // Mouse interaction variables
+        let mouse = {
+            x: centerX,
+            y: centerY,
+            active: false
+        };
+        
+        // Shooting stars
+        let shootingStars = [];
+        let lastShootingStarTime = 0;
+        const shootingStarInterval = 3000; // New shooting star every 3 seconds on average
+
+        // Color interpolation function
+        function interpolateColor(radius, angle) {
+            // Use both radius and angle for more varied coloring
+            let ratio = (radius - minRadius) / (maxRadius - minRadius);
+            
+            // Add time-based color cycling
+            ratio = (ratio + colorCycle) % 1;
+            
+            // Add slight variation based on angle
+            let angleInfluence = (Math.sin(angle * 2) + 1) * 0.1;
+            ratio = (ratio + angleInfluence) % 1;
+            
+            let r, g, b, a;
+            
+            if (ratio < 0.33) {
+                // Yellow to Orange
+                let subRatio = ratio * 3;
+                r = 255;
+                g = Math.floor(255 * (1 - subRatio * 0.7));
+                b = 0;
+                a = 0.7 + (subRatio * 0.2);
+            } else if (ratio < 0.66) {
+                // Orange to Red/Purple
+                let subRatio = (ratio - 0.33) * 3;
+                r = Math.floor(255 * (1 - subRatio * 0.5));
+                g = 0;
+                b = Math.floor(255 * subRatio);
+                a = 0.8;
+            } else {
+                // Purple to Blue/Cyan
+                let subRatio = (ratio - 0.66) * 3;
+                r = Math.floor(100 * subRatio);
+                g = Math.floor(200 * subRatio);
+                b = 255;
+                a = 0.7 + (subRatio * 0.3);
+            }
+            
+            return `rgba(${r},${g},${b},${a})`;
+        }
+
+        // Particle class
+        function Particle() {
+            // Initial properties
+            this.angle = Math.random() * 2 * Math.PI;
+            this.radius = Math.random() * (maxRadius - minRadius) + minRadius;
+            this.baseRadius = this.radius;
+            this.distanceRatio = (this.radius - minRadius) / (maxRadius - minRadius);
+            this.speed = (Math.random() * 0.006 + 0.002) * (Math.random() > 0.5 ? 1 : -1);
+            this.baseSpeed = this.speed;
+            this.size = Math.random() * 2.8 + 0.7;
+            this.originalSize = this.size;
+            this.opacity = Math.random() * 0.5 + 0.3;
+            this.phase = Math.random() * Math.PI * 2;
+            
+            // Add z-dimension for parallax effect
+            this.z = Math.random() * 3 + 1;
+            this.parallaxFactor = 1 / this.z;
+            this.scaledRadius = this.radius * this.parallaxFactor;
+            
+            // Give each particle slightly different elliptical paths
+            this.ellipticalFactor = Math.random() * 1.5 + 1.5;
+            
+            // Calculate initial position
+            this.x = centerX + this.scaledRadius * Math.cos(this.angle);
+            this.y = centerY + this.scaledRadius * Math.sin(this.angle) / this.ellipticalFactor;
+            
+            // Update method
+            this.update = function() {
+                // Apply dynamic speed changes
+                let currentSpeed = this.baseSpeed * speedMultiplier;
+                
+                // Update angle for orbit
+                this.angle += currentSpeed;
+                
+                // Apply oscillation to the radius
+                let radiusOscillation = Math.sin(this.phase + Date.now() * 0.0005) * (10 + this.distanceRatio * 20);
+                let currentRadius = this.baseRadius + radiusOscillation;
+                
+                // Apply parallax effect
+                let scaledRadius = currentRadius * this.parallaxFactor;
+                
+                // Calculate base position in orbit
+                let orbitX = centerX + scaledRadius * Math.cos(this.angle);
+                let orbitY = centerY + scaledRadius * Math.sin(this.angle) / this.ellipticalFactor;
+                
+                // Apply mouse influence if active
+                if (mouse.active) {
+                    // Calculate distance to mouse
+                    let dx = mouse.x - orbitX;
+                    let dy = mouse.y - orbitY;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Apply attraction/repulsion based on distance
+                    let influence = Math.max(0, 1 - distance / (300 * this.parallaxFactor));
+                    
+                    // Particles closer to viewer are more influenced by mouse
+                    influence *= (4 - this.z) / 3;
+                    
+                    // Move toward/away from mouse
+                    orbitX += dx * influence * 0.08;
+                    orbitY += dy * influence * 0.08;
+                    
+                    // Temporarily increase size when near mouse
+                    this.size = this.originalSize * (1 + influence * 1.5);
+                } else {
+                    // Slight size oscillation
+                    this.size = this.originalSize * (1 + Math.sin(this.phase + Date.now() * 0.001) * 0.2);
+                }
+                
+                // Set final position
+                this.x = orbitX;
+                this.y = orbitY;
+                
+                // Get color based on radius and angle
+                this.color = interpolateColor(currentRadius, this.angle);
+            };
+            
+            // Draw method
+            this.draw = function() {
+                // For brighter particles, add glow effect
+                if (this.size > 2) {
+                    // Extract rgba values
+                    const rgbaMatch = this.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+                    if (rgbaMatch) {
+                        const r = rgbaMatch[1];
+                        const g = rgbaMatch[2];
+                        const b = rgbaMatch[3];
+                        const a = rgbaMatch[4];
+                        
+                        // Create glow with gradient
+                        const gradient = ctx.createRadialGradient(
+                            this.x, this.y, 0,
+                            this.x, this.y, this.size * 2.5
+                        );
+                        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${a})`);
+                        gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                
+                // Draw main particle
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            };
+        }
+
+        // Shooting star object
+        function ShootingStar() {
+            // Random starting position off-screen
+            const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+            
+            // Set starting position based on side
+            switch(side) {
+                case 0: // top
+                    this.x = Math.random() * canvas.width;
+                    this.y = -20;
+                    this.speedX = (Math.random() - 0.5) * 15;
+                    this.speedY = Math.random() * 5 + 10;
+                    break;
+                case 1: // right
+                    this.x = canvas.width + 20;
+                    this.y = Math.random() * canvas.height;
+                    this.speedX = -(Math.random() * 5 + 10);
+                    this.speedY = (Math.random() - 0.5) * 15;
+                    break;
+                case 2: // bottom
+                    this.x = Math.random() * canvas.width;
+                    this.y = canvas.height + 20;
+                    this.speedX = (Math.random() - 0.5) * 15;
+                    this.speedY = -(Math.random() * 5 + 10);
+                    break;
+                case 3: // left
+                    this.x = -20;
+                    this.y = Math.random() * canvas.height;
+                    this.speedX = Math.random() * 5 + 10;
+                    this.speedY = (Math.random() - 0.5) * 15;
+                    break;
+            }
+            
+            // Properties
+            this.length = Math.random() * 80 + 50;
+            this.decay = Math.random() * 0.04 + 0.015;
+            this.life = 1.0;
+            this.width = Math.random() * 3 + 1;
+            
+            // Color - randomly choose between white, blue-white, and yellow-white
+            const colorType = Math.floor(Math.random() * 3);
+            switch(colorType) {
+                case 0: // White
+                    this.baseColor = [255, 255, 255];
+                    break;
+                case 1: // Blue-white
+                    this.baseColor = [220, 240, 255];
+                    break;
+                case 2: // Yellow-white
+                    this.baseColor = [255, 245, 220];
+                    break;
+            }
+            
+            // Update method
+            this.update = function() {
+                // Move the shooting star
+                this.x += this.speedX;
+                this.y += this.speedY;
+                
+                // Reduce life
+                this.life -= this.decay;
+                
+                // Return if still alive
+                return this.life > 0;
+            };
+            
+            // Draw method
+            this.draw = function() {
+                if (this.life <= 0) return;
+                
+                // Calculate trail vector
+                const trailX = -this.speedX * this.length / Math.sqrt(this.speedX * this.speedX + this.speedY * this.speedY);
+                const trailY = -this.speedY * this.length / Math.sqrt(this.speedX * this.speedX + this.speedY * this.speedY);
+                
+                // Create gradient for trail
+                const gradient = ctx.createLinearGradient(
+                    this.x, this.y,
+                    this.x + trailX, this.y + trailY
+                );
+                
+                // Full opacity at the head, transparent at the tail
+                const [r, g, b] = this.baseColor;
+                gradient.addColorStop(0, `rgba(${r},${g},${b},${this.life})`);
+                gradient.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                
+                // Draw trail
+                ctx.beginPath();
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = this.width * this.life;
+                ctx.lineCap = 'round';
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + trailX, this.y + trailY);
+                ctx.stroke();
+                
+                // Add a bright head
+                ctx.beginPath();
+                ctx.fillStyle = `rgba(${r},${g},${b},${this.life})`;
+                ctx.arc(this.x, this.y, this.width * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Add outer glow to the head
+                const glowSize = this.width * 6 * this.life;
+                const glow = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, glowSize
+                );
+                glow.addColorStop(0, `rgba(${r},${g},${b},${this.life * 0.7})`);
+                glow.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                
+                ctx.beginPath();
+                ctx.fillStyle = glow;
+                ctx.arc(this.x, this.y, glowSize, 0, Math.PI * 2);
+                ctx.fill();
+            };
+        }
+        // Event listeners
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            centerX = canvas.width / 2;
+            centerY = Math.min(250, canvas.height / 3);
+            
+            // Update maxRadius based on new canvas dimensions
+            const newMaxRadius = Math.max(canvas.width, canvas.height) * 0.6;
+            
+            // Scale existing particles to new size
+            if (particles.length > 0) {
+                const radiusRatio = newMaxRadius / maxRadius;
+                particles.forEach(particle => {
+                    particle.baseRadius *= radiusRatio;
+                    particle.radius *= radiusRatio;
+                });
+            }
+            
+            // Update global maxRadius
+            maxRadius = newMaxRadius;
+        });
+        
+        // Add scroll listener for parallax effect
+        window.addEventListener('scroll', () => {
+            const scrollY = window.scrollY;
+            centerY = 250 - scrollY * 0.1;
+        });
+        
+        // Mouse interaction
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.active = true;
+        });
+        
+        canvas.addEventListener('mouseout', () => {
+            mouse.active = false;
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+            mouse.active = true;
+        });
+        
+        canvas.addEventListener('touchend', () => {
+            mouse.active = false;
+        });
+        
+        // Feature box interactions
+        document.querySelectorAll('.feature-box').forEach(box => {
+            // 3D hover effect
+            box.addEventListener('mousemove', (e) => {
+                const rect = box.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                const rotateX = (y - centerY) / 20;
+                const rotateY = (centerX - x) / 20;
+                
+                box.style.transform = `translateY(-10px) scale(1.03) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+                
+                const spotlight = `radial-gradient(circle at ${x}px ${y}px, rgba(255,140,0,0.2) 0%, rgba(255,140,0,0) 50%)`;
+                box.style.backgroundImage = spotlight;
+            });
+            
+            // Reset on mouse leave
+            box.addEventListener('mouseleave', () => {
+                box.style.transform = '';
+                box.style.backgroundImage = '';
+            });
+            
+            // Click effect
+            box.addEventListener('click', () => {
+                box.classList.add('clicked');
+                
+                setTimeout(() => {
+                    box.classList.remove('clicked');
+                }, 600);
+            });
+        });
+        
+        // Initialize and start animation
+        initParticles();
+        animateParticles();
+       // Form validation
+        function validateForm() {
+            let isValid = true;
+            const nameInput = document.getElementById('name');
+            const emailInput = document.getElementById('email');
+            const phoneInput = document.getElementById('phone');
+            const nameError = document.getElementById('name-error');
+            const emailError = document.getElementById('email-error');
+            const phoneError = document.getElementById('phone-error');
+            const submitBtn = document.getElementById('submit-btn');
+            const spinner = document.getElementById('spinner');
+            
+            // Reset errors
+            nameError.textContent = '';
+            emailError.textContent = '';
+            phoneError.textContent = '';
+            
+            // Validate name
+            if (!nameInput.value.trim()) {
+                nameError.textContent = 'Name is required';
+                isValid = false;
+            }
+            
+            // Validate email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailInput.value.trim()) {
+                emailError.textContent = 'Email is required';
+                isValid = false;
+            } else if (!emailRegex.test(emailInput.value)) {
+                emailError.textContent = 'Please enter a valid email';
+                isValid = false;
+            }
+            
+            // Validate phone (optional)
+            if (phoneInput.value.trim()) {
+                const phoneRegex = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/;
+                if (!phoneRegex.test(phoneInput.value)) {
+                    phoneError.textContent = 'Please enter a valid phone number';
+                    isValid = false;
+                }
+            }
+            
+            // If form is valid, submit
+            if (isValid) {
+                // Show loading spinner
+                submitBtn.disabled = true;
+                spinner.style.display = 'inline-block';
+                
+                // Simulate form submission
+                setTimeout(() => {
+                    spinner.style.display = 'none';
+                    showSuccessMessage();
+                    resetForm();
+                    submitBtn.disabled = false;
+                }, 1500);
+            }
+        }
+
+        // Show success message
+        function showSuccessMessage() {
+            const successMessage = document.getElementById('success-message');
+            successMessage.classList.add('show');
+        }
+
+        // Dismiss success message
+        function dismissSuccess() {
+            const successMessage = document.getElementById('success-message');
+            successMessage.classList.remove('show');
+        }
+
+        // Reset form
+        function resetForm() {
+            document.getElementById('name').value = '';
+            document.getElementById('email').value = '';
+            document.getElementById('company').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('notes').value = '';
+        }        // Initialize particles
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        // Animation loop
+        function animateParticles() {
+            const currentTime = Date.now();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Create subtle glow effect with gradient background
+            const bgGradient = ctx.createRadialGradient(
+                centerX, centerY, 0,
+                centerX, centerY, canvas.height
+            );
+            bgGradient.addColorStop(0, 'rgba(14, 15, 26, 0.3)');
+            bgGradient.addColorStop(1, 'rgba(8, 8, 12, 0.4)');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Update dynamic animation parameters
+            colorCycle += 0.0005;
+            speedMultiplier = 0.7 + Math.sin(currentTime * 0.0002) * 0.5;
+            
+            // Sort particles by z for proper layering
+            particles.sort((a, b) => b.z - a.z);
+            
+            // Update and draw all particles
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            
+            // Check if it's time to create a new shooting star
+            if (currentTime - lastShootingStarTime > shootingStarInterval * (0.5 + Math.random())) {
+                shootingStars.push(new ShootingStar());
+                lastShootingStarTime = currentTime;
+            }
+            
+            // Update and draw shooting stars
+            shootingStars = shootingStars.filter(star => {
+                const isAlive = star.update();
+                if (isAlive) {
+                    star.draw();
+                }
+                return isAlive;
+            });
+            
+            requestAnimationFrame(animateParticles);
+    });
+    </script>
+</body>
+
+</html> 
