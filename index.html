@@ -268,7 +268,7 @@
     
     #date-display {
       position: absolute;
-      top: 20px;
+      top: 60px;
       left: 50%;
       transform: translateX(-50%);
       background: linear-gradient(135deg, rgba(15, 15, 35, 0.95), rgba(25, 25, 55, 0.85));
@@ -447,22 +447,55 @@
         width: 28px;
         height: 28px;
       }
-      
+
       .resize-handle {
         width: 30px;
         height: 30px;
       }
-      
+
       .slider::-webkit-slider-thumb {
         width: 24px;
         height: 24px;
       }
+    }
+
+    .nav-bar {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      display: flex;
+      gap: 10px;
+      pointer-events: all;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, rgba(15, 15, 35, 0.95), rgba(25, 25, 55, 0.85));
+      border: 1px solid rgba(100, 150, 255, 0.3);
+      border-radius: 8px;
+      color: #6eb5ff;
+      text-decoration: none;
+      font-size: 12px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-link:hover {
+      background: linear-gradient(135deg, rgba(110, 181, 255, 0.2), rgba(74, 159, 255, 0.1));
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(110, 181, 255, 0.2);
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
   <div id="ui-overlay">
+    <nav class="nav-bar">
+      <a href="signup.html" class="nav-link">Home</a>
+      <a href="solar-system.html" class="nav-link">Solar System</a>
+    </nav>
     <div id="date-display">January 1, 2025</div>
     
     <div id="planet-info-panel" class="ui-panel">
