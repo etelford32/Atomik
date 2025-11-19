@@ -456,10 +456,66 @@
             margin-top: 20px;
         }
 
+        .experience-launcher {
+            max-width: 800px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+
+        .experience-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .experience-btn {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px 30px;
+            background: linear-gradient(135deg, rgba(255, 140, 0, 0.2), rgba(255, 70, 0, 0.1));
+            border: 2px solid rgba(255, 140, 0, 0.5);
+            border-radius: 15px;
+            text-decoration: none;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            min-width: 280px;
+            backdrop-filter: blur(10px);
+        }
+
+        .experience-btn:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(255, 140, 0, 0.4);
+            border-color: rgba(255, 140, 0, 0.8);
+            background: linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 70, 0, 0.2));
+        }
+
+        .btn-icon {
+            font-size: 2.5rem;
+        }
+
+        .btn-text h3 {
+            margin: 0 0 5px 0;
+            color: #ff8c00;
+            font-size: 1.2rem;
+        }
+
+        .btn-text p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2.5rem;
                 letter-spacing: 3px;
+            }
+
+            .experience-btn {
+                min-width: 100%;
+                max-width: 300px;
             }
             
             .logo {
@@ -525,6 +581,26 @@
         <div class="feature-box">
             <h3>User-Friendly</h3>
             <p>Intuitive UI designed for seamless user experience.</p>
+        </div>
+    </section>
+
+    <section class="experience-launcher">
+        <h2 style="color: #ff8c00; margin-bottom: 30px; font-size: 2rem;">Launch Experience</h2>
+        <div class="experience-buttons">
+            <a href="solar-system.html" class="experience-btn">
+                <div class="btn-icon">&#x1F30D;</div>
+                <div class="btn-text">
+                    <h3>Solar System</h3>
+                    <p>Explore planets and orbits in 3D</p>
+                </div>
+            </a>
+            <a href="index.html" class="experience-btn">
+                <div class="btn-icon">&#x2600;</div>
+                <div class="btn-text">
+                    <h3>Space Weather</h3>
+                    <p>Advanced solar wind analysis</p>
+                </div>
+            </a>
         </div>
     </section>
 

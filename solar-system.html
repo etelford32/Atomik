@@ -128,6 +128,33 @@
             z-index: 1000;
         }
 
+        .nav-bar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-link {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-link:hover {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
         .planet-label {
             position: absolute;
             color: white;
@@ -141,6 +168,11 @@
 <body>
     <div id="loading">Loading Solar System...</div>
     <div id="canvas-container"></div>
+
+    <nav class="nav-bar">
+        <a href="signup.html" class="nav-link">Home</a>
+        <a href="index.html" class="nav-link">Space Weather</a>
+    </nav>
 
     <div id="info-panel">
         <h1>Solar System</h1>
