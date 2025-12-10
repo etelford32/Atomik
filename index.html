@@ -1,1879 +1,781 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Solar System Explorer - Space Weather Edition</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-    
-    body {
-      overflow: hidden;
-      background: #000;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      color: #fff;
-      touch-action: none;
-    }
-    
-    canvas { 
-      display: block;
-      cursor: grab;
-    }
-    
-    canvas:active {
-      cursor: grabbing;
-    }
-    
-    #ui-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      pointer-events: none;
-      z-index: 100;
-    }
-    
-    .ui-panel {
-      position: absolute;
-      background: linear-gradient(135deg, rgba(15, 15, 35, 0.95), rgba(25, 25, 55, 0.85));
-      border: 1px solid rgba(100, 150, 255, 0.3);
-      border-radius: 12px;
-      padding: 0;
-      pointer-events: all;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      min-width: 280px;
-      min-height: 100px;
-      display: flex;
-      flex-direction: column;
-      transition: box-shadow 0.3s ease;
-    }
-    
-    .ui-panel.dragging {
-      box-shadow: 0 12px 48px rgba(110, 181, 255, 0.3);
-      z-index: 1000;
-    }
-    
-    .panel-header {
-      background: linear-gradient(135deg, rgba(110, 181, 255, 0.2), rgba(74, 159, 255, 0.1));
-      padding: 12px 15px;
-      border-radius: 12px 12px 0 0;
-      cursor: move;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(100, 150, 255, 0.2);
-    }
-    
-    .panel-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #6eb5ff;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    
-    .panel-controls {
-      display: flex;
-      gap: 8px;
-    }
-    
-    .panel-btn {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.1);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      transition: all 0.3s ease;
-    }
-    
-    .panel-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
-    }
-    
-    .panel-btn.minimize::before { content: "−"; }
-    .panel-btn.close::before { content: "×"; }
-    
-    .panel-content {
-      padding: 20px;
-      overflow-y: auto;
-      flex: 1;
-    }
-    
-    .panel-content.minimized {
-      display: none;
-    }
-    
-    .resize-handle {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      width: 20px;
-      height: 20px;
-      cursor: nwse-resize;
-      pointer-events: all;
-    }
-    
-    .resize-handle::before {
-      content: "";
-      position: absolute;
-      bottom: 3px;
-      right: 3px;
-      width: 10px;
-      height: 10px;
-      border-right: 2px solid rgba(110, 181, 255, 0.5);
-      border-bottom: 2px solid rgba(110, 181, 255, 0.5);
-    }
-    
-    #controls-panel {
-      top: 20px;
-      right: 20px;
-      width: 320px;
-    }
-    
-    #planet-info-panel {
-      top: 20px;
-      left: 20px;
-      width: 320px;
-      display: none;
-    }
-    
-    #planet-info-panel.visible {
-      display: flex;
-    }
-    
-    #sun-info-panel {
-      bottom: 20px;
-      left: 20px;
-      width: 420px;
-      max-height: 550px;
-      display: none;
-    }
-    
-    #sun-info-panel.visible {
-      display: flex;
-    }
-    
-    #solar-wind-panel {
-      top: 80px;
-      left: 20px;
-      width: 360px;
-      display: none;
-    }
-    
-    #solar-wind-panel.visible {
-      display: flex;
-    }
-    
-    .control-group {
-      margin-bottom: 15px;
-    }
-    
-    .control-label {
-      display: block;
-      margin-bottom: 5px;
-      font-size: 12px;
-      color: #a0c4ff;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .slider {
-      width: 100%;
-      height: 6px;
-      border-radius: 3px;
-      background: rgba(255, 255, 255, 0.1);
-      outline: none;
-      -webkit-appearance: none;
-      cursor: pointer;
-    }
-    
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #6eb5ff, #4a9fff);
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(110, 181, 255, 0.5);
-    }
-    
-    .slider::-moz-range-thumb {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #6eb5ff, #4a9fff);
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(110, 181, 255, 0.5);
-    }
-    
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-      margin-bottom: 10px;
-      cursor: pointer;
-    }
-    
-    .checkbox-group input[type="checkbox"] {
-      margin-right: 8px;
-      cursor: pointer;
-    }
-    
-    .checkbox-group label {
-      cursor: pointer;
-      font-size: 14px;
-      color: #c0d8ff;
-    }
-    
-    .planet-stat, .sun-stat {
-      margin: 8px 0;
-      font-size: 14px;
-      color: #c0d8ff;
-    }
-    
-    .planet-stat strong, .sun-stat strong {
-      color: #6eb5ff;
-      margin-right: 5px;
-    }
-    
-    #speed-display {
-      display: inline-block;
-      margin-left: 10px;
-      color: #6eb5ff;
-      font-weight: 600;
-    }
-    
-    #help-panel {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 320px;
-    }
-    
-    #date-display {
-      position: absolute;
-      top: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, rgba(15, 15, 35, 0.95), rgba(25, 25, 55, 0.85));
-      border: 1px solid rgba(100, 150, 255, 0.3);
-      border-radius: 8px;
-      padding: 10px 20px;
-      font-size: 16px;
-      color: #6eb5ff;
-      font-weight: 600;
-      pointer-events: none;
-      backdrop-filter: blur(10px);
-    }
-    
-    .solar-data-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin: 20px 0;
-    }
-    
-    .solar-metric {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid rgba(110, 181, 255, 0.2);
-    }
-    
-    .metric-label {
-      font-size: 11px;
-      color: #8ab4ff;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 5px;
-    }
-    
-    .metric-value {
-      font-size: 18px;
-      font-weight: 600;
-      color: #fff;
-    }
-    
-    .metric-unit {
-      font-size: 12px;
-      color: #6eb5ff;
-      margin-left: 4px;
-    }
-    
-    .status-indicator {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 8px;
-      animation: pulse 2s infinite;
-    }
-    
-    .status-indicator.active {
-      background: #4ade80;
-    }
-    
-    .status-indicator.warning {
-      background: #fbbf24;
-    }
-    
-    .status-indicator.alert {
-      background: #ef4444;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    
-    .solar-activity-bar {
-      width: 100%;
-      height: 30px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 15px;
-      overflow: hidden;
-      position: relative;
-      margin: 10px 0;
-    }
-    
-    .activity-level {
-      height: 100%;
-      background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444);
-      border-radius: 15px;
-      transition: width 0.5s ease;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding-right: 10px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
-    .nav-button {
-      background: linear-gradient(135deg, rgba(110, 181, 255, 0.2), rgba(74, 159, 255, 0.1));
-      border: 1px solid rgba(110, 181, 255, 0.3);
-      border-radius: 8px;
-      padding: 8px 16px;
-      color: #6eb5ff;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      font-size: 14px;
-      margin: 5px 0;
-      width: 100%;
-      text-align: center;
-    }
-    
-    .nav-button:hover {
-      background: linear-gradient(135deg, rgba(110, 181, 255, 0.3), rgba(74, 159, 255, 0.2));
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(110, 181, 255, 0.2);
-    }
-    
-    .wind-metric {
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 8px;
-      padding: 12px;
-      margin: 10px 0;
-      border-left: 3px solid #6eb5ff;
-    }
-    
-    .cme-alert {
-      background: linear-gradient(135deg, rgba(255, 100, 100, 0.2), rgba(255, 50, 50, 0.1));
-      border: 1px solid rgba(255, 100, 100, 0.5);
-      border-radius: 8px;
-      padding: 10px;
-      margin: 10px 0;
-      animation: cmeFlash 2s infinite;
-    }
-    
-    @keyframes cmeFlash {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-    
-    .luminosity-chart {
-      height: 100px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 8px;
-      position: relative;
-      overflow: hidden;
-      margin: 10px 0;
-    }
-    
-    .luminosity-bar {
-      position: absolute;
-      bottom: 0;
-      width: 2px;
-      background: linear-gradient(to top, #fbbf24, #ff6b6b);
-      transition: height 0.5s ease;
-    }
-    
-    @media (max-width: 768px) {
-      .ui-panel {
-        min-width: 250px;
-      }
-      
-      #controls-panel, #help-panel {
-        width: 280px;
-      }
-      
-      #sun-info-panel, #solar-wind-panel {
-        width: 320px;
-      }
-      
-      .solar-data-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-    
-    @media (hover: none) {
-      .panel-btn {
-        width: 28px;
-        height: 28px;
-      }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atomik - Real-Time Solar System Exploration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-      .resize-handle {
-        width: 30px;
-        height: 30px;
-      }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e27;
+            color: #fff;
+            overflow-x: hidden;
+        }
 
-      .slider::-webkit-slider-thumb {
-        width: 24px;
-        height: 24px;
-      }
-    }
+        /* Animated starfield background */
+        #starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
 
-    .nav-bar {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 200;
-      display: flex;
-      gap: 10px;
-      pointer-events: all;
-    }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
 
-    .nav-link {
-      padding: 8px 16px;
-      background: linear-gradient(135deg, rgba(15, 15, 35, 0.95), rgba(25, 25, 55, 0.85));
-      border: 1px solid rgba(100, 150, 255, 0.3);
-      border-radius: 8px;
-      color: #6eb5ff;
-      text-decoration: none;
-      font-size: 12px;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(10px);
-    }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
 
-    .nav-link:hover {
-      background: linear-gradient(135deg, rgba(110, 181, 255, 0.2), rgba(74, 159, 255, 0.1));
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(110, 181, 255, 0.2);
-    }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            background: rgba(10, 14, 39, 0.8);
+            border-bottom: 1px solid rgba(110, 181, 255, 0.2);
+            z-index: 1000;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #6eb5ff, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #a0c4ff;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #6eb5ff;
+        }
+
+        .cta-button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #6eb5ff, #4a9fff);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(110, 181, 255, 0.4);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(110, 181, 255, 0.6);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 100px 50px 50px;
+            position: relative;
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .hero h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #ffffff, #6eb5ff, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 5s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .hero .tagline {
+            font-size: 1.5rem;
+            color: #a0c4ff;
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .hero .description {
+            font-size: 1.1rem;
+            color: #8ab4ff;
+            margin-bottom: 50px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.8;
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .primary-cta {
+            padding: 18px 50px;
+            font-size: 1.2rem;
+            background: linear-gradient(135deg, #6eb5ff, #4a9fff);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 30px rgba(110, 181, 255, 0.5);
+        }
+
+        .primary-cta:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(110, 181, 255, 0.7);
+        }
+
+        .secondary-cta {
+            padding: 18px 50px;
+            font-size: 1.2rem;
+            background: transparent;
+            border: 2px solid #6eb5ff;
+            border-radius: 30px;
+            color: #6eb5ff;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .secondary-cta:hover {
+            background: rgba(110, 181, 255, 0.1);
+            transform: translateY(-3px);
+        }
+
+        /* Preview Section */
+        .preview-orbit {
+            margin-top: 80px;
+            position: relative;
+            width: 600px;
+            height: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .preview-sun {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ffdd00, #ff8c00);
+            box-shadow: 0 0 60px rgba(255, 221, 0, 0.8), 0 0 100px rgba(255, 140, 0, 0.4);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        .preview-orbit-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+            border: 2px dashed rgba(110, 181, 255, 0.3);
+            border-radius: 50%;
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .preview-earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            margin-left: 160px;
+            margin-top: -20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2E5EAA, #4a9fff);
+            box-shadow: 0 0 20px rgba(110, 181, 255, 0.6);
+            animation: orbit 20s linear infinite;
+        }
+
+        @keyframes orbit {
+            from { transform: rotate(0deg) translateX(200px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(200px) rotate(-360deg); }
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 50px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #6eb5ff, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: #8ab4ff;
+            font-size: 1.2rem;
+            margin-bottom: 60px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, rgba(15, 15, 35, 0.9), rgba(25, 25, 55, 0.8));
+            border: 1px solid rgba(110, 181, 255, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(110, 181, 255, 0.6);
+            box-shadow: 0 20px 60px rgba(110, 181, 255, 0.3);
+        }
+
+        .feature-card.locked::before {
+            content: '🔒';
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2rem;
+            opacity: 0.5;
+        }
+
+        .feature-card.locked::after {
+            content: 'SIGN UP TO UNLOCK';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-weight: 700;
+            color: #fbbf24;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            border: 2px solid #fbbf24;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 10;
+        }
+
+        .feature-card.locked:hover::after {
+            opacity: 1;
+        }
+
+        .feature-card.locked .card-content {
+            filter: blur(3px);
+            opacity: 0.5;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: #6eb5ff;
+        }
+
+        .feature-card p {
+            color: #a0c4ff;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .feature-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(110, 181, 255, 0.2), rgba(74, 159, 255, 0.1));
+            border: 1px solid rgba(110, 181, 255, 0.4);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #6eb5ff;
+            margin-top: 10px;
+        }
+
+        .coming-soon {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
+            border-color: rgba(251, 191, 36, 0.4);
+            color: #fbbf24;
+        }
+
+        /* Data Preview Section */
+        .data-preview {
+            padding: 100px 50px;
+            background: linear-gradient(180deg, rgba(10, 14, 39, 0) 0%, rgba(15, 23, 42, 0.5) 100%);
+        }
+
+        .data-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .data-stat {
+            background: rgba(15, 15, 35, 0.6);
+            border: 1px solid rgba(110, 181, 255, 0.2);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .data-stat .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #6eb5ff;
+            margin-bottom: 10px;
+        }
+
+        .data-stat .stat-label {
+            color: #8ab4ff;
+            font-size: 1rem;
+        }
+
+        /* CTA Section */
+        .final-cta {
+            padding: 100px 50px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(110, 181, 255, 0.1), rgba(74, 159, 255, 0.05));
+        }
+
+        .final-cta h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #ffffff, #6eb5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .final-cta p {
+            font-size: 1.3rem;
+            color: #a0c4ff;
+            margin-bottom: 50px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Footer */
+        footer {
+            padding: 50px;
+            text-align: center;
+            border-top: 1px solid rgba(110, 181, 255, 0.2);
+            color: #8ab4ff;
+        }
+
+        footer a {
+            color: #6eb5ff;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 20px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero .tagline {
+                font-size: 1.2rem;
+            }
+
+            .preview-orbit {
+                width: 300px;
+                height: 300px;
+            }
+
+            .preview-orbit-line {
+                width: 200px;
+                height: 200px;
+            }
+
+            .preview-earth {
+                margin-left: 80px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .final-cta h2 {
+                font-size: 2rem;
+            }
+        }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-10px); }
+            60% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        .scroll-indicator::before {
+            content: '↓';
+            font-size: 2rem;
+            color: #6eb5ff;
+        }
+    </style>
 </head>
 <body>
-  <div id="ui-overlay">
-    <nav class="nav-bar">
-      <a href="signup.html" class="nav-link">Home</a>
-      <a href="solar-system.html" class="nav-link">Solar System</a>
-      <a href="earth-orbit.html" class="nav-link">Earth's Orbit</a>
-    </nav>
-    <div id="date-display">January 1, 2025</div>
-    
-    <div id="planet-info-panel" class="ui-panel">
-      <div class="panel-header">
-        <span class="panel-title">Planet Information</span>
-        <div class="panel-controls">
-          <div class="panel-btn minimize"></div>
-          <div class="panel-btn close"></div>
-        </div>
-      </div>
-      <div class="panel-content">
-        <div id="planet-details"></div>
-      </div>
-      <div class="resize-handle"></div>
-    </div>
-    
-    <div id="solar-wind-panel" class="ui-panel">
-      <div class="panel-header">
-        <span class="panel-title">🌊 Solar Wind Analysis</span>
-        <div class="panel-controls">
-          <div class="panel-btn minimize"></div>
-          <div class="panel-btn close"></div>
-        </div>
-      </div>
-      <div class="panel-content">
-        <div class="wind-metric">
-          <div class="metric-label">Parker Spiral Angle</div>
-          <div class="metric-value">
-            <span id="spiral-angle">45</span>°
-          </div>
-        </div>
-        
-        <div class="wind-metric">
-          <div class="metric-label">IMF Polarity</div>
-          <div class="metric-value">
-            <span id="imf-polarity">Toward</span>
-          </div>
-        </div>
-        
-        <div class="wind-metric">
-          <div class="metric-label">Proton Temperature</div>
-          <div class="metric-value">
-            <span id="proton-temp">52,000</span> K
-          </div>
-        </div>
-        
-        <div id="cme-status" class="cme-alert" style="display: none;">
-          <strong>⚠️ CME DETECTED</strong><br>
-          <span id="cme-details">Impact expected in 48 hours</span>
-        </div>
-        
-        <div style="margin-top: 15px;">
-          <div class="metric-label">Solar Luminosity Profile</div>
-          <div class="luminosity-chart" id="luminosity-chart"></div>
-        </div>
-      </div>
-      <div class="resize-handle"></div>
-    </div>
-    
-    <div id="sun-info-panel" class="ui-panel">
-      <div class="panel-header">
-        <span class="panel-title">☀️ Solar Activity Monitor</span>
-        <div class="panel-controls">
-          <div class="panel-btn minimize"></div>
-          <div class="panel-btn close"></div>
-        </div>
-      </div>
-      <div class="panel-content">
-        <div style="margin-bottom: 15px;">
-          <span class="status-indicator active"></span>
-          <span style="color: #a0c4ff;">Live Solar Data Stream</span>
-        </div>
-        
-        <div class="solar-data-grid">
-          <div class="solar-metric">
-            <div class="metric-label">Solar Wind Speed</div>
-            <div class="metric-value">
-              <span id="wind-speed">452</span>
-              <span class="metric-unit">km/s</span>
-            </div>
-          </div>
-          <div class="solar-metric">
-            <div class="metric-label">Particle Density</div>
-            <div class="metric-value">
-              <span id="particle-density">5.2</span>
-              <span class="metric-unit">p/cm³</span>
-            </div>
-          </div>
-          <div class="solar-metric">
-            <div class="metric-label">Magnetic Field</div>
-            <div class="metric-value">
-              <span id="magnetic-field">-2.1</span>
-              <span class="metric-unit">nT</span>
-            </div>
-          </div>
-          <div class="solar-metric">
-            <div class="metric-label">X-Ray Flux</div>
-            <div class="metric-value">
-              <span id="xray-flux">B2.4</span>
-              <span class="metric-unit"></span>
-            </div>
-          </div>
-        </div>
-        
-        <div style="margin: 20px 0;">
-          <div class="metric-label">Solar Activity Level</div>
-          <div class="solar-activity-bar">
-            <div class="activity-level" id="activity-level" style="width: 35%;">
-              <span>Moderate</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="sun-stat"><strong>Temperature (Core):</strong> 15 million °C</div>
-        <div class="sun-stat"><strong>Temperature (Surface):</strong> 5,778 K</div>
-        <div class="sun-stat"><strong>Mass:</strong> 1.989 × 10³⁰ kg</div>
-        <div class="sun-stat"><strong>Diameter:</strong> 1.39 million km</div>
-        <div class="sun-stat"><strong>Rotation Period:</strong> 25.05 days</div>
-        <div class="sun-stat"><strong>Next Solar Maximum:</strong> July 2025</div>
-        
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(100, 150, 255, 0.2);">
-          <div style="font-size: 12px; color: #8ab4ff; margin-bottom: 5px;">LATEST ALERT</div>
-          <div id="solar-alert" style="font-size: 13px; color: #fbbf24;">
-            Minor G1 geomagnetic storm watch in effect
-          </div>
-        </div>
-      </div>
-      <div class="resize-handle"></div>
-    </div>
-    
-    <div id="controls-panel" class="ui-panel">
-      <div class="panel-header">
-        <span class="panel-title">System Controls</span>
-        <div class="panel-controls">
-          <div class="panel-btn minimize"></div>
-        </div>
-      </div>
-      <div class="panel-content">
-        <div class="nav-button" id="focus-sun">🌞 Focus on Sun</div>
-        <div class="nav-button" id="toggle-wind">💨 Toggle Solar Wind</div>
-        
-        <div class="control-group">
-          <label class="control-label">Orbital Speed<span id="speed-display">1x</span></label>
-          <input type="range" class="slider" id="speed-slider" min="0" max="100" value="10">
-        </div>
-        
-        <div class="control-group">
-          <label class="control-label">Planet Scale</label>
-          <input type="range" class="slider" id="scale-slider" min="1" max="50" value="10">
-        </div>
-        
-        <div class="control-group">
-          <label class="control-label">Solar Wind Intensity</label>
-          <input type="range" class="slider" id="wind-intensity-slider" min="0" max="100" value="50">
-        </div>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="show-orbits" checked>
-          <label for="show-orbits">Show Orbital Paths</label>
-        </div>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="show-labels" checked>
-          <label for="show-labels">Show Planet Names</label>
-        </div>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="show-magnetic-field">
-          <label for="show-magnetic-field">Show Magnetic Field</label>
-        </div>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="realistic-distances">
-          <label for="realistic-distances">Realistic Distances</label>
-        </div>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="show-asteroid-belt">
-          <label for="show-asteroid-belt">Show Asteroid Belt</label>
-        </div>
-      </div>
-      <div class="resize-handle"></div>
-    </div>
-    
-    <div id="help-panel" class="ui-panel">
-      <div class="panel-header">
-        <span class="panel-title">Navigation Help</span>
-        <div class="panel-controls">
-          <div class="panel-btn minimize"></div>
-          <div class="panel-btn close"></div>
-        </div>
-      </div>
-      <div class="panel-content">
-        <div style="margin: 8px 0;">🖱️ Left Click + Drag: Rotate View</div>
-        <div style="margin: 8px 0;">🖱️ Right Click + Drag: Pan Camera</div>
-        <div style="margin: 8px 0;">🖱️ Scroll: Zoom In/Out</div>
-        <div style="margin: 8px 0;">🖱️ Click Planet/Sun: View Details</div>
-        <div style="margin: 8px 0;">📱 Touch + Drag: Rotate</div>
-        <div style="margin: 8px 0;">📱 Pinch: Zoom</div>
-        <div style="margin: 8px 0;">📱 Two Finger Drag: Pan</div>
-      </div>
-      <div class="resize-handle"></div>
-    </div>
-  </div>
+    <!-- Starfield Background -->
+    <div id="starfield"></div>
 
-  <script>
-    // Make panels draggable and resizable
-    function makeDraggable(panel) {
-      const header = panel.querySelector('.panel-header');
-      let isDragging = false;
-      let startX, startY, initialX, initialY;
-      
-      function startDrag(e) {
-        if (e.target.classList.contains('panel-btn')) return;
-        
-        isDragging = true;
-        panel.classList.add('dragging');
-        
-        if (e.type === 'mousedown') {
-          startX = e.clientX;
-          startY = e.clientY;
-        } else if (e.type === 'touchstart') {
-          startX = e.touches[0].clientX;
-          startY = e.touches[0].clientY;
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">ATOMIK</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#simulations">Simulations</a>
+            <a href="#about">About</a>
+            <a href="signup.html" class="cta-button">Get Early Access</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Explore the Cosmos<br>in Real-Time</h1>
+            <p class="tagline">Experience Earth's journey through space with NASA-powered simulations</p>
+            <p class="description">
+                Atomik brings the solar system to your fingertips. Watch Earth orbit the Sun in real-time,
+                explore planetary motion with accurate NASA data, and witness the beauty of celestial mechanics
+                like never before.
+            </p>
+            <div class="hero-cta">
+                <button class="primary-cta" onclick="window.location.href='signup.html'">
+                    Start Your Journey
+                </button>
+                <a href="#simulations" class="secondary-cta">Explore Simulations</a>
+            </div>
+
+            <!-- Animated Preview -->
+            <div class="preview-orbit">
+                <div class="preview-sun"></div>
+                <div class="preview-orbit-line"></div>
+                <div class="preview-earth"></div>
+            </div>
+        </div>
+        <div class="scroll-indicator"></div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <h2 class="section-title">Unlock the Universe</h2>
+        <p class="section-subtitle">
+            Sign up to access real-time simulations powered by NASA public domain data
+        </p>
+
+        <div class="feature-grid" id="simulations">
+            <!-- Earth Orbit - Featured -->
+            <div class="feature-card locked">
+                <div class="card-content">
+                    <div class="feature-icon">🌍</div>
+                    <h3>Earth's Orbit</h3>
+                    <p>
+                        Watch Earth travel around the Sun in real-time with accurate NASA orbital data.
+                        See perihelion, aphelion, seasons, and the 23.44° axial tilt that gives us our changing seasons.
+                    </p>
+                    <span class="feature-badge">NASA JPL Data</span>
+                    <span class="feature-badge">Real-Time</span>
+                </div>
+            </div>
+
+            <!-- Full Solar System -->
+            <div class="feature-card locked">
+                <div class="card-content">
+                    <div class="feature-icon">🪐</div>
+                    <h3>Full Solar System</h3>
+                    <p>
+                        Explore all 8 planets with accurate orbital mechanics, rotation speeds, and distances.
+                        Interactive 3D controls let you zoom, pan, and follow any planet.
+                    </p>
+                    <span class="feature-badge">8 Planets</span>
+                    <span class="feature-badge">3D Interactive</span>
+                </div>
+            </div>
+
+            <!-- Space Weather -->
+            <div class="feature-card locked">
+                <div class="card-content">
+                    <div class="feature-icon">☀️</div>
+                    <h3>Space Weather Monitor</h3>
+                    <p>
+                        Track solar wind, magnetic fields, and space weather events. Visualize the Parker Spiral,
+                        CME events, and understand how solar activity affects Earth.
+                    </p>
+                    <span class="feature-badge">Live Data</span>
+                    <span class="feature-badge">Solar Wind</span>
+                </div>
+            </div>
+
+            <!-- Real-Time Positions -->
+            <div class="feature-card locked">
+                <div class="card-content">
+                    <div class="feature-icon">📍</div>
+                    <h3>Real-Time Positions</h3>
+                    <p>
+                        See exactly where every planet is right now. Our simulations use accurate ephemeris data
+                        to show the current configuration of the solar system.
+                    </p>
+                    <span class="feature-badge">Live Updates</span>
+                    <span class="feature-badge">Ephemeris</span>
+                </div>
+            </div>
+
+            <!-- Asteroid Belt -->
+            <div class="feature-card locked">
+                <div class="card-content">
+                    <div class="feature-icon">☄️</div>
+                    <h3>Asteroid Belt</h3>
+                    <p>
+                        Explore the asteroid belt between Mars and Jupiter. Toggle thousands of asteroids
+                        and see the rocky debris that orbits our Sun.
+                    </p>
+                    <span class="feature-badge">500+ Asteroids</span>
+                    <span class="feature-badge coming-soon">Coming Soon</span>
+                </div>
+            </div>
+
+            <!-- Moon Phases -->
+            <div class="feature-card locked">
+                <div class="card-content">
+                    <div class="feature-icon">🌙</div>
+                    <h3>Moon & Satellites</h3>
+                    <p>
+                        Track Earth's Moon with accurate phase calculations. Future updates will include
+                        all major moons of Jupiter, Saturn, and other gas giants.
+                    </p>
+                    <span class="feature-badge">Moon Phases</span>
+                    <span class="feature-badge coming-soon">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Data Preview -->
+    <section class="data-preview" id="about">
+        <h2 class="section-title">Built on NASA Data</h2>
+        <p class="section-subtitle">
+            All simulations use real orbital parameters from NASA's Jet Propulsion Laboratory
+        </p>
+
+        <div class="data-grid">
+            <div class="data-stat">
+                <div class="stat-value">365.256</div>
+                <div class="stat-label">Days in Earth's Orbit</div>
+            </div>
+            <div class="data-stat">
+                <div class="stat-value">149.6M</div>
+                <div class="stat-label">Kilometers to Sun (1 AU)</div>
+            </div>
+            <div class="data-stat">
+                <div class="stat-value">29.78</div>
+                <div class="stat-label">km/s Orbital Speed</div>
+            </div>
+            <div class="data-stat">
+                <div class="stat-value">23.44°</div>
+                <div class="stat-label">Earth's Axial Tilt</div>
+            </div>
+            <div class="data-stat">
+                <div class="stat-value">8</div>
+                <div class="stat-label">Planets Simulated</div>
+            </div>
+            <div class="data-stat">
+                <div class="stat-value">∞</div>
+                <div class="stat-label">Possibilities to Explore</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <h2>Ready to Explore?</h2>
+        <p>Join the beta and unlock exclusive access to real-time solar system simulations</p>
+        <button class="primary-cta" onclick="window.location.href='signup.html'">
+            Get Early Access Now
+        </button>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>
+            <a href="signup.html">Sign Up</a>
+            <a href="space-weather.html">Space Weather</a>
+            <a href="solar-system.html">Solar System</a>
+            <a href="earth-orbit.html">Earth's Orbit</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 0.9rem;">
+            Data Source: NASA Jet Propulsion Laboratory (JPL) - Public Domain
+        </p>
+        <p style="margin-top: 10px; color: #6eb5ff;">
+            © 2025 Atomik. Built with passion for space exploration.
+        </p>
+    </footer>
+
+    <script>
+        // Generate starfield
+        const starfield = document.getElementById('starfield');
+        const starCount = 200;
+
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.width = Math.random() * 2 + 'px';
+            star.style.height = star.style.width;
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starfield.appendChild(star);
         }
-        
-        const rect = panel.getBoundingClientRect();
-        initialX = rect.left;
-        initialY = rect.top;
-        
-        e.preventDefault();
-      }
-      
-      function drag(e) {
-        if (!isDragging) return;
-        
-        let currentX, currentY;
-        
-        if (e.type === 'mousemove') {
-          currentX = e.clientX;
-          currentY = e.clientY;
-        } else if (e.type === 'touchmove') {
-          currentX = e.touches[0].clientX;
-          currentY = e.touches[0].clientY;
-        }
-        
-        const deltaX = currentX - startX;
-        const deltaY = currentY - startY;
-        
-        panel.style.left = `${initialX + deltaX}px`;
-        panel.style.top = `${initialY + deltaY}px`;
-        panel.style.right = 'auto';
-        panel.style.bottom = 'auto';
-      }
-      
-      function stopDrag() {
-        if (!isDragging) return;
-        isDragging = false;
-        panel.classList.remove('dragging');
-      }
-      
-      header.addEventListener('mousedown', startDrag);
-      header.addEventListener('touchstart', startDrag, { passive: false });
-      
-      document.addEventListener('mousemove', drag);
-      document.addEventListener('touchmove', drag, { passive: false });
-      
-      document.addEventListener('mouseup', stopDrag);
-      document.addEventListener('touchend', stopDrag);
-    }
-    
-    function makeResizable(panel) {
-      const handle = panel.querySelector('.resize-handle');
-      if (!handle) return;
-      
-      let isResizing = false;
-      let startX, startY, startWidth, startHeight;
-      
-      function startResize(e) {
-        isResizing = true;
-        
-        if (e.type === 'mousedown') {
-          startX = e.clientX;
-          startY = e.clientY;
-        } else if (e.type === 'touchstart') {
-          startX = e.touches[0].clientX;
-          startY = e.touches[0].clientY;
-        }
-        
-        startWidth = parseInt(document.defaultView.getComputedStyle(panel).width, 10);
-        startHeight = parseInt(document.defaultView.getComputedStyle(panel).height, 10);
-        
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      
-      function resize(e) {
-        if (!isResizing) return;
-        
-        let currentX, currentY;
-        
-        if (e.type === 'mousemove') {
-          currentX = e.clientX;
-          currentY = e.clientY;
-        } else if (e.type === 'touchmove') {
-          currentX = e.touches[0].clientX;
-          currentY = e.touches[0].clientY;
-        }
-        
-        const newWidth = startWidth + (currentX - startX);
-        const newHeight = startHeight + (currentY - startY);
-        
-        panel.style.width = Math.max(250, newWidth) + 'px';
-        panel.style.height = Math.max(100, newHeight) + 'px';
-      }
-      
-      function stopResize() {
-        isResizing = false;
-      }
-      
-      handle.addEventListener('mousedown', startResize);
-      handle.addEventListener('touchstart', startResize, { passive: false });
-      
-      document.addEventListener('mousemove', resize);
-      document.addEventListener('touchmove', resize, { passive: false });
-      
-      document.addEventListener('mouseup', stopResize);
-      document.addEventListener('touchend', stopResize);
-    }
-    
-    // Initialize all panels
-    document.querySelectorAll('.ui-panel').forEach(panel => {
-      makeDraggable(panel);
-      makeResizable(panel);
-      
-      // Minimize button
-      const minimizeBtn = panel.querySelector('.panel-btn.minimize');
-      if (minimizeBtn) {
-        minimizeBtn.addEventListener('click', () => {
-          const content = panel.querySelector('.panel-content');
-          content.classList.toggle('minimized');
-          const isMinimized = content.classList.contains('minimized');
-          panel.style.height = isMinimized ? 'auto' : '';
+
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
         });
-      }
-      
-      // Close button
-      const closeBtn = panel.querySelector('.panel-btn.close');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-          panel.style.display = 'none';
+
+        // Feature card click handler
+        document.querySelectorAll('.feature-card.locked').forEach(card => {
+            card.addEventListener('click', function() {
+                // Redirect to signup with a hint about which feature they clicked
+                window.location.href = 'signup.html';
+            });
         });
-      }
-    });
-    
-    // Scene setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100000);
-    camera.position.set(0, 30, 50);
-    
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
-    
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-    scene.add(ambientLight);
-    
-    const sunLight = new THREE.PointLight(0xffffff, 2, 500);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    scene.add(sunLight);
-    
-    // Starfield background
-    const starsGeometry = new THREE.BufferGeometry();
-    const starCount = 15000;
-    const starPositions = new Float32Array(starCount * 3);
-    const starColors = new Float32Array(starCount * 3);
-    
-    for (let i = 0; i < starCount * 3; i += 3) {
-      const radius = 500 + Math.random() * 5000;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos((Math.random() * 2) - 1);
-      
-      starPositions[i] = radius * Math.sin(phi) * Math.cos(theta);
-      starPositions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      starPositions[i + 2] = radius * Math.cos(phi);
-      
-      const brightness = 0.5 + Math.random() * 0.5;
-      starColors[i] = brightness;
-      starColors[i + 1] = brightness;
-      starColors[i + 2] = brightness;
-    }
-    
-    starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    starsGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-    
-    const starsMaterial = new THREE.PointsMaterial({
-      size: 1,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8
-    });
-    
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(stars);
-    
-    // Sun
-    const sunGeometry = new THREE.SphereGeometry(3, 32, 32);
-    const sunMaterial = new THREE.ShaderMaterial({
-      vertexShader: `
-        varying vec2 vUv;
-        varying vec3 vNormal;
-        void main() {
-          vUv = uv;
-          vNormal = normal;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float time;
-        uniform float luminosity;
-        varying vec2 vUv;
-        varying vec3 vNormal;
-        
-        void main() {
-          vec3 color1 = vec3(1.0, 0.9, 0.3);
-          vec3 color2 = vec3(1.0, 0.4, 0.1);
-          
-          float noise = sin(vUv.x * 10.0 + time) * sin(vUv.y * 10.0 - time) * 0.5 + 0.5;
-          vec3 finalColor = mix(color1, color2, noise);
-          
-          float fresnel = pow(1.0 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-          finalColor += vec3(1.0, 0.6, 0.2) * fresnel * 0.5;
-          finalColor *= luminosity;
-          
-          gl_FragColor = vec4(finalColor, 1.0);
-        }
-      `,
-      uniforms: {
-        time: { value: 0 },
-        luminosity: { value: 1.0 }
-      }
-    });
-    
-    const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-    sun.castShadow = false;
-    sun.receiveShadow = false;
-    sun.userData = { isSun: true };
-    scene.add(sun);
-    
-    // Sun glow
-    const glowGeometry = new THREE.SphereGeometry(4, 32, 32);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffaa00,
-      transparent: true,
-      opacity: 0.3
-    });
-    const sunGlow = new THREE.Mesh(glowGeometry, glowMaterial);
-    scene.add(sunGlow);
-    
-    // Solar Wind System
-    let solarWindData = {
-      speed: 450,
-      density: 5,
-      magneticField: -2,
-      temperature: 50000,
-      spiralAngle: 45,
-      intensity: 0.5
-    };
-    
-    // Parker Spiral Solar Wind
-    const windParticleCount = 3000;
-    const windGeometry = new THREE.BufferGeometry();
-    const windPositions = new Float32Array(windParticleCount * 3);
-    const windVelocities = new Float32Array(windParticleCount * 3);
-    const windColors = new Float32Array(windParticleCount * 3);
-    const windSizes = new Float32Array(windParticleCount);
-    
-    // Initialize solar wind particles with Parker spiral pattern
-    for (let i = 0; i < windParticleCount; i++) {
-      const radius = 3.5 + Math.random() * 200;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos((Math.random() * 2) - 1);
-      
-      // Parker spiral adjustment
-      const spiralOffset = (radius / 100) * solarWindData.spiralAngle * Math.PI / 180;
-      
-      windPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta + spiralOffset);
-      windPositions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta + spiralOffset);
-      windPositions[i * 3 + 2] = radius * Math.cos(phi);
-      
-      // Velocity based on solar wind speed and radial direction
-      const speed = solarWindData.speed / 10000;
-      windVelocities[i * 3] = Math.sin(phi) * Math.cos(theta) * speed;
-      windVelocities[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * speed;
-      windVelocities[i * 3 + 2] = Math.cos(phi) * speed;
-      
-      // Color gradient from yellow near sun to blue far away
-      const colorFactor = Math.min(1, radius / 100);
-      windColors[i * 3] = 1.0;
-      windColors[i * 3 + 1] = 1.0 - colorFactor * 0.5;
-      windColors[i * 3 + 2] = colorFactor;
-      
-      windSizes[i] = 0.5 + Math.random() * 1.5;
-    }
-    
-    windGeometry.setAttribute('position', new THREE.BufferAttribute(windPositions, 3));
-    windGeometry.setAttribute('color', new THREE.BufferAttribute(windColors, 3));
-    windGeometry.setAttribute('size', new THREE.BufferAttribute(windSizes, 1));
-    
-    const windMaterial = new THREE.PointsMaterial({
-      size: 1,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.6,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    
-    const solarWind = new THREE.Points(windGeometry, windMaterial);
-    solarWind.visible = false;
-    scene.add(solarWind);
-    
-    // Magnetic field lines
-    const magneticFieldGroup = new THREE.Group();
-    const fieldLineCount = 16;
-    
-    for (let i = 0; i < fieldLineCount; i++) {
-      const angle = (i / fieldLineCount) * Math.PI * 2;
-      const curvePoints = [];
-      
-      for (let j = 0; j <= 50; j++) {
-        const t = j / 50;
-        const radius = 4 + t * 100;
-        const spiralAngle = angle + (t * solarWindData.spiralAngle * Math.PI / 180);
-        const height = Math.sin(t * Math.PI) * 20;
-        
-        curvePoints.push(new THREE.Vector3(
-          Math.cos(spiralAngle) * radius,
-          height * (1 - t),
-          Math.sin(spiralAngle) * radius
-        ));
-      }
-      
-      const curve = new THREE.CatmullRomCurve3(curvePoints);
-      const tubeGeometry = new THREE.TubeGeometry(curve, 50, 0.1, 8, false);
-      const tubeMaterial = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(0.5, 0.8, 1),
-        transparent: true,
-        opacity: 0.3
-      });
-      
-      const fieldLine = new THREE.Mesh(tubeGeometry, tubeMaterial);
-      magneticFieldGroup.add(fieldLine);
-    }
-    
-    magneticFieldGroup.visible = false;
-    scene.add(magneticFieldGroup);
-    
-    // CME Burst Effect
-    let cmeActive = false;
-    const cmeParticles = new THREE.Group();
-    
-    function createCME() {
-      cmeActive = true;
-      document.getElementById('cme-status').style.display = 'block';
-      
-      const cmeParticleCount = 500;
-      const cmeGeometry = new THREE.BufferGeometry();
-      const cmePositions = new Float32Array(cmeParticleCount * 3);
-      const cmeColors = new Float32Array(cmeParticleCount * 3);
-      
-      for (let i = 0; i < cmeParticleCount; i++) {
-        const theta = Math.random() * Math.PI * 0.5 - Math.PI * 0.25; // Directional burst
-        const phi = Math.random() * Math.PI * 0.5 - Math.PI * 0.25;
-        
-        cmePositions[i * 3] = Math.cos(theta) * Math.sin(phi) * 4;
-        cmePositions[i * 3 + 1] = Math.sin(theta) * 4;
-        cmePositions[i * 3 + 2] = Math.cos(phi) * 4;
-        
-        cmeColors[i * 3] = 1.0;
-        cmeColors[i * 3 + 1] = 0.3;
-        cmeColors[i * 3 + 2] = 0.1;
-      }
-      
-      cmeGeometry.setAttribute('position', new THREE.BufferAttribute(cmePositions, 3));
-      cmeGeometry.setAttribute('color', new THREE.BufferAttribute(cmeColors, 3));
-      
-      const cmeMaterial = new THREE.PointsMaterial({
-        size: 3,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending
-      });
-      
-      const cmeBurst = new THREE.Points(cmeGeometry, cmeMaterial);
-      cmeParticles.add(cmeBurst);
-      
-      setTimeout(() => {
-        cmeParticles.remove(cmeBurst);
-        cmeActive = false;
-        document.getElementById('cme-status').style.display = 'none';
-      }, 10000);
-    }
-    
-    scene.add(cmeParticles);
-    
-    // Planet data
-    const planets = [
-      { 
-        name: 'Mercury', 
-        radius: 0.4, 
-        distance: 8, 
-        color: 0x8C7853, 
-        rotationSpeed: 0.004, 
-        orbitSpeed: 0.04,
-        info: {
-          mass: '3.3 × 10²³ kg',
-          diameter: '4,879 km',
-          dayLength: '58.6 Earth days',
-          yearLength: '88 Earth days',
-          moons: 0,
-          temperature: '-173°C to 427°C'
-        }
-      },
-      { 
-        name: 'Venus', 
-        radius: 0.95, 
-        distance: 11, 
-        color: 0xFFC649, 
-        rotationSpeed: -0.002, 
-        orbitSpeed: 0.015,
-        info: {
-          mass: '4.87 × 10²⁴ kg',
-          diameter: '12,104 km',
-          dayLength: '243 Earth days',
-          yearLength: '225 Earth days',
-          moons: 0,
-          temperature: '462°C average'
-        }
-      },
-      { 
-        name: 'Earth', 
-        radius: 1, 
-        distance: 15, 
-        color: 0x2E5EAA, 
-        rotationSpeed: 0.01, 
-        orbitSpeed: 0.01,
-        info: {
-          mass: '5.97 × 10²⁴ kg',
-          diameter: '12,756 km',
-          dayLength: '24 hours',
-          yearLength: '365.25 days',
-          moons: 1,
-          temperature: '15°C average'
-        }
-      },
-      { 
-        name: 'Mars', 
-        radius: 0.53, 
-        distance: 20, 
-        color: 0xCD5C5C, 
-        rotationSpeed: 0.009, 
-        orbitSpeed: 0.008,
-        info: {
-          mass: '6.42 × 10²³ kg',
-          diameter: '6,792 km',
-          dayLength: '24.6 hours',
-          yearLength: '687 Earth days',
-          moons: 2,
-          temperature: '-63°C average'
-        }
-      },
-      { 
-        name: 'Jupiter', 
-        radius: 2.5, 
-        distance: 35, 
-        color: 0xC88B3A, 
-        rotationSpeed: 0.02, 
-        orbitSpeed: 0.002,
-        info: {
-          mass: '1.90 × 10²⁷ kg',
-          diameter: '142,984 km',
-          dayLength: '9.9 hours',
-          yearLength: '12 Earth years',
-          moons: 79,
-          temperature: '-108°C average'
-        }
-      },
-      { 
-        name: 'Saturn', 
-        radius: 2, 
-        distance: 50, 
-        color: 0xFAD5A5, 
-        rotationSpeed: 0.018, 
-        orbitSpeed: 0.0009,
-        hasRings: true,
-        info: {
-          mass: '5.68 × 10²⁶ kg',
-          diameter: '120,536 km',
-          dayLength: '10.7 hours',
-          yearLength: '29 Earth years',
-          moons: 82,
-          temperature: '-139°C average'
-        }
-      },
-      { 
-        name: 'Uranus', 
-        radius: 1.2, 
-        distance: 65, 
-        color: 0x4FD0E0, 
-        rotationSpeed: 0.012, 
-        orbitSpeed: 0.0004,
-        tilt: Math.PI / 2,
-        info: {
-          mass: '8.68 × 10²⁵ kg',
-          diameter: '51,118 km',
-          dayLength: '17.2 hours',
-          yearLength: '84 Earth years',
-          moons: 27,
-          temperature: '-197°C average'
-        }
-      },
-      { 
-        name: 'Neptune', 
-        radius: 1.2, 
-        distance: 80, 
-        color: 0x3F54BA, 
-        rotationSpeed: 0.011, 
-        orbitSpeed: 0.0002,
-        info: {
-          mass: '1.02 × 10²⁶ kg',
-          diameter: '49,528 km',
-          dayLength: '16.1 hours',
-          yearLength: '165 Earth years',
-          moons: 14,
-          temperature: '-201°C average'
-        }
-      }
-    ];
-    
-    // Create planets
-    const planetMeshes = [];
-    const orbitLines = [];
-    const planetLabels = [];
-    let planetScale = 10;
-    
-    planets.forEach((planetData, index) => {
-      // Planet mesh
-      const planetGeometry = new THREE.SphereGeometry(planetData.radius, 32, 32);
-      const planetMaterial = new THREE.MeshPhongMaterial({
-        color: planetData.color,
-        emissive: planetData.color,
-        emissiveIntensity: 0.1,
-        shininess: 30
-      });
-      
-      const planet = new THREE.Mesh(planetGeometry, planetMaterial);
-      planet.castShadow = true;
-      planet.receiveShadow = true;
-      planet.userData = planetData;
-      
-      // Add cloud layer for Earth
-      if (planetData.name === 'Earth') {
-        const cloudGeometry = new THREE.SphereGeometry(planetData.radius * 1.02, 32, 32);
-        const cloudMaterial = new THREE.MeshPhongMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.3
+
+        // Add parallax effect to hero content
+        window.addEventListener('scroll', function() {
+            const scrolled = window.pageYOffset;
+            const heroContent = document.querySelector('.hero-content');
+            if (heroContent) {
+                heroContent.style.transform = `translateY(${scrolled * 0.5}px)`;
+                heroContent.style.opacity = 1 - (scrolled / 800);
+            }
         });
-        const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
-        planet.add(clouds);
-        planet.clouds = clouds;
-      }
-      
-      // Add rings for Saturn
-      if (planetData.hasRings) {
-        const ringGeometry = new THREE.RingGeometry(
-          planetData.radius * 1.5,
-          planetData.radius * 2.5,
-          64
-        );
-        const ringMaterial = new THREE.MeshBasicMaterial({
-          color: 0xBBB09F,
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.7
-        });
-        const rings = new THREE.Mesh(ringGeometry, ringMaterial);
-        rings.rotation.x = -Math.PI / 2;
-        planet.add(rings);
-      }
-      
-      // Apply tilt if specified
-      if (planetData.tilt) {
-        planet.rotation.z = planetData.tilt;
-      }
-      
-      // Set initial position
-      const angle = Math.random() * Math.PI * 2;
-      planet.position.x = Math.cos(angle) * planetData.distance;
-      planet.position.z = Math.sin(angle) * planetData.distance;
-      planet.currentAngle = angle;
-      
-      scene.add(planet);
-      planetMeshes.push(planet);
-      
-      // Orbit line
-      const orbitCurve = new THREE.EllipseCurve(
-        0, 0,
-        planetData.distance, planetData.distance,
-        0, 2 * Math.PI,
-        false,
-        0
-      );
-      
-      const orbitPoints = orbitCurve.getPoints(128);
-      const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-      const orbitMaterial = new THREE.LineBasicMaterial({
-        color: planetData.color,
-        transparent: true,
-        opacity: 0.3
-      });
-      
-      const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
-      orbitLine.rotation.x = Math.PI / 2;
-      scene.add(orbitLine);
-      orbitLines.push(orbitLine);
-    });
-    
-    // Asteroid belt
-    const asteroidBelt = new THREE.Group();
-    const asteroidCount = 500;
-    const asteroidGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-    const asteroidMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
-    
-    for (let i = 0; i < asteroidCount; i++) {
-      const asteroid = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
-      const distance = 27 + Math.random() * 3;
-      const angle = Math.random() * Math.PI * 2;
-      const yOffset = (Math.random() - 0.5) * 2;
-      
-      asteroid.position.x = Math.cos(angle) * distance;
-      asteroid.position.y = yOffset;
-      asteroid.position.z = Math.sin(angle) * distance;
-      asteroid.scale.set(Math.random() * 0.5 + 0.5, Math.random() * 0.5 + 0.5, Math.random() * 0.5 + 0.5);
-      
-      asteroidBelt.add(asteroid);
-    }
-    asteroidBelt.visible = false;
-    scene.add(asteroidBelt);
-    
-    // Camera controls
-    let isMouseDown = false;
-    let isRightClick = false;
-    let mouseX = 0;
-    let mouseY = 0;
-    let cameraDistance = 50;
-    let cameraAngleX = 0;
-    let cameraAngleY = Math.PI / 6;
-    let cameraTarget = new THREE.Vector3(0, 0, 0);
-    
-    // Touch controls
-    let touchStartDistance = 0;
-    let touches = [];
-    
-    function updateCamera() {
-      camera.position.x = cameraTarget.x + Math.cos(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
-      camera.position.y = cameraTarget.y + Math.sin(cameraAngleY) * cameraDistance;
-      camera.position.z = cameraTarget.z + Math.sin(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
-      camera.lookAt(cameraTarget);
-    }
-    
-    // Mouse events
-    renderer.domElement.addEventListener('mousedown', (e) => {
-      isMouseDown = true;
-      isRightClick = e.button === 2;
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-    });
-    
-    document.addEventListener('mouseup', () => {
-      isMouseDown = false;
-      isRightClick = false;
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-      if (isMouseDown) {
-        const deltaX = e.clientX - mouseX;
-        const deltaY = e.clientY - mouseY;
-        
-        if (isRightClick) {
-          // Pan camera
-          const panSpeed = cameraDistance * 0.001;
-          cameraTarget.x -= deltaX * panSpeed;
-          cameraTarget.y += deltaY * panSpeed;
-        } else {
-          // Rotate camera
-          cameraAngleX += deltaX * 0.005;
-          cameraAngleY = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraAngleY - deltaY * 0.005));
-        }
-        
-        updateCamera();
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-      }
-    });
-    
-    // Touch events
-    renderer.domElement.addEventListener('touchstart', (e) => {
-      touches = Array.from(e.touches);
-      
-      if (touches.length === 2) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        touchStartDistance = Math.sqrt(dx * dx + dy * dy);
-      }
-    }, { passive: false });
-    
-    renderer.domElement.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      
-      if (e.touches.length === 1 && touches.length === 1) {
-        // Single touch - rotate
-        const deltaX = e.touches[0].clientX - touches[0].clientX;
-        const deltaY = e.touches[0].clientY - touches[0].clientY;
-        
-        cameraAngleX += deltaX * 0.01;
-        cameraAngleY = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraAngleY - deltaY * 0.01));
-        
-        updateCamera();
-      } else if (e.touches.length === 2) {
-        // Pinch to zoom
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        const scale = distance / touchStartDistance;
-        cameraDistance /= scale;
-        cameraDistance = Math.max(5, Math.min(5000, cameraDistance));
-        touchStartDistance = distance;
-        
-        // Two finger pan
-        if (touches.length === 2) {
-          const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          const oldCenterX = (touches[0].clientX + touches[1].clientX) / 2;
-          const oldCenterY = (touches[0].clientY + touches[1].clientY) / 2;
-          
-          const deltaX = centerX - oldCenterX;
-          const deltaY = centerY - oldCenterY;
-          
-          const panSpeed = cameraDistance * 0.002;
-          cameraTarget.x -= deltaX * panSpeed;
-          cameraTarget.y += deltaY * panSpeed;
-        }
-        
-        updateCamera();
-      }
-      
-      touches = Array.from(e.touches);
-    }, { passive: false });
-    
-    // Prevent context menu on right click
-    renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-    
-    // Zoom - increased max distance
-    renderer.domElement.addEventListener('wheel', (e) => {
-      cameraDistance *= 1 + e.deltaY * 0.001;
-      cameraDistance = Math.max(5, Math.min(5000, cameraDistance));
-      updateCamera();
-    });
-    
-    // Raycaster for planet/sun selection
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    
-    function handleObjectClick(e) {
-      let clientX, clientY;
-      
-      if (e.type === 'click') {
-        clientX = e.clientX;
-        clientY = e.clientY;
-      } else if (e.type === 'touchend' && e.changedTouches.length === 1) {
-        clientX = e.changedTouches[0].clientX;
-        clientY = e.changedTouches[0].clientY;
-      } else {
-        return;
-      }
-      
-      mouse.x = (clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-      
-      raycaster.setFromCamera(mouse, camera);
-      
-      // Check sun first
-      const sunIntersects = raycaster.intersectObject(sun);
-      if (sunIntersects.length > 0) {
-        document.getElementById('sun-info-panel').classList.add('visible');
-        document.getElementById('sun-info-panel').style.display = 'flex';
-        document.getElementById('solar-wind-panel').classList.add('visible');
-        document.getElementById('solar-wind-panel').style.display = 'flex';
-        return;
-      }
-      
-      // Check planets
-      const intersects = raycaster.intersectObjects(planetMeshes);
-      if (intersects.length > 0) {
-        const planet = intersects[0].object;
-        const data = planet.userData;
-        
-        const infoPanel = document.getElementById('planet-info-panel');
-        const details = document.getElementById('planet-details');
-        
-        details.innerHTML = `
-          <div class="planet-stat"><strong>Name:</strong> ${data.name}</div>
-          <div class="planet-stat"><strong>Mass:</strong> ${data.info.mass}</div>
-          <div class="planet-stat"><strong>Diameter:</strong> ${data.info.diameter}</div>
-          <div class="planet-stat"><strong>Day Length:</strong> ${data.info.dayLength}</div>
-          <div class="planet-stat"><strong>Year Length:</strong> ${data.info.yearLength}</div>
-          <div class="planet-stat"><strong>Moons:</strong> ${data.info.moons}</div>
-          <div class="planet-stat"><strong>Temperature:</strong> ${data.info.temperature}</div>
-        `;
-        
-        infoPanel.classList.add('visible');
-        infoPanel.style.display = 'flex';
-        
-        // Smooth camera focus on selected planet
-        const targetDistance = Math.max(data.radius * 10, 10);
-        const focusAnimation = setInterval(() => {
-          cameraTarget.lerp(planet.position, 0.1);
-          cameraDistance += (targetDistance - cameraDistance) * 0.1;
-          updateCamera();
-          
-          if (Math.abs(cameraDistance - targetDistance) < 0.1) {
-            clearInterval(focusAnimation);
-          }
-        }, 16);
-      }
-    }
-    
-    renderer.domElement.addEventListener('click', handleObjectClick);
-    renderer.domElement.addEventListener('touchend', handleObjectClick);
-    
-    // Focus on Sun button
-    document.getElementById('focus-sun').addEventListener('click', () => {
-      document.getElementById('sun-info-panel').classList.add('visible');
-      document.getElementById('sun-info-panel').style.display = 'flex';
-      document.getElementById('solar-wind-panel').classList.add('visible');
-      document.getElementById('solar-wind-panel').style.display = 'flex';
-      
-      const targetDistance = 15;
-      const focusAnimation = setInterval(() => {
-        cameraTarget.lerp(new THREE.Vector3(0, 0, 0), 0.1);
-        cameraDistance += (targetDistance - cameraDistance) * 0.1;
-        updateCamera();
-        
-        if (Math.abs(cameraDistance - targetDistance) < 0.1) {
-          clearInterval(focusAnimation);
-        }
-      }, 16);
-    });
-    
-    // Toggle Solar Wind
-    document.getElementById('toggle-wind').addEventListener('click', () => {
-      solarWind.visible = !solarWind.visible;
-      if (solarWind.visible) {
-        document.getElementById('solar-wind-panel').classList.add('visible');
-        document.getElementById('solar-wind-panel').style.display = 'flex';
-      }
-    });
-    
-    // Controls
-    let orbitSpeed = 1;
-    let showOrbits = true;
-    let showLabels = true;
-    let realisticDistances = false;
-    
-    document.getElementById('speed-slider').addEventListener('input', (e) => {
-      orbitSpeed = Math.pow(e.target.value / 10, 2);
-      document.getElementById('speed-display').textContent = orbitSpeed.toFixed(1) + 'x';
-    });
-    
-    document.getElementById('scale-slider').addEventListener('input', (e) => {
-      planetScale = parseFloat(e.target.value);
-      planetMeshes.forEach((planet, i) => {
-        const baseRadius = planets[i].radius;
-        planet.scale.setScalar(planetScale / 10);
-      });
-    });
-    
-    document.getElementById('wind-intensity-slider').addEventListener('input', (e) => {
-      solarWindData.intensity = e.target.value / 100;
-      windMaterial.opacity = 0.3 + solarWindData.intensity * 0.5;
-    });
-    
-    document.getElementById('show-orbits').addEventListener('change', (e) => {
-      showOrbits = e.target.checked;
-      orbitLines.forEach(line => line.visible = showOrbits);
-    });
-    
-    document.getElementById('show-labels').addEventListener('change', (e) => {
-      showLabels = e.target.checked;
-    });
-    
-    document.getElementById('show-magnetic-field').addEventListener('change', (e) => {
-      magneticFieldGroup.visible = e.target.checked;
-    });
-    
-    document.getElementById('realistic-distances').addEventListener('change', (e) => {
-      realisticDistances = e.target.checked;
-      
-      planetMeshes.forEach((planet, i) => {
-        const data = planets[i];
-        let distance = data.distance;
-        
-        if (realisticDistances) {
-          // Realistic relative distances (compressed scale)
-          const realDistances = [0.39, 0.72, 1, 1.52, 5.2, 9.54, 19.2, 30.06];
-          distance = realDistances[i] * 15;
-        }
-        
-        // Update planet position
-        const angle = planet.currentAngle;
-        planet.position.x = Math.cos(angle) * distance;
-        planet.position.z = Math.sin(angle) * distance;
-        planet.userData.currentDistance = distance;
-        
-        // Update orbit line
-        const orbitCurve = new THREE.EllipseCurve(
-          0, 0,
-          distance, distance,
-          0, 2 * Math.PI,
-          false,
-          0
-        );
-        
-        const orbitPoints = orbitCurve.getPoints(128);
-        orbitLines[i].geometry.setFromPoints(orbitPoints);
-      });
-    });
-    
-    document.getElementById('show-asteroid-belt').addEventListener('change', (e) => {
-      asteroidBelt.visible = e.target.checked;
-    });
-    
-    // Update solar wind animation
-    function animateSolarWind() {
-      if (!solarWind.visible) return;
-      
-      const positions = windGeometry.attributes.position.array;
-      const colors = windGeometry.attributes.color.array;
-      const speed = solarWindData.speed / 10000;
-      
-      for (let i = 0; i < windParticleCount; i++) {
-        let x = positions[i * 3];
-        let y = positions[i * 3 + 1];
-        let z = positions[i * 3 + 2];
-        
-        const distance = Math.sqrt(x * x + y * y + z * z);
-        
-        // Move particles outward with spiral pattern
-        const theta = Math.atan2(y, x);
-        const newTheta = theta + (solarWindData.spiralAngle * 0.0001);
-        const radialSpeed = speed * (1 + solarWindData.intensity);
-        
-        x += Math.cos(newTheta) * radialSpeed;
-        y += Math.sin(newTheta) * radialSpeed;
-        z += windVelocities[i * 3 + 2] * solarWindData.intensity;
-        
-        // Reset particle if too far
-        if (distance > 250) {
-          const radius = 3.5 + Math.random() * 2;
-          const resetTheta = Math.random() * Math.PI * 2;
-          const resetPhi = Math.acos((Math.random() * 2) - 1);
-          
-          x = radius * Math.sin(resetPhi) * Math.cos(resetTheta);
-          y = radius * Math.sin(resetPhi) * Math.sin(resetTheta);
-          z = radius * Math.cos(resetPhi);
-          
-          colors[i * 3] = 1.0;
-          colors[i * 3 + 1] = 0.9;
-          colors[i * 3 + 2] = 0.2;
-        } else {
-          // Update color based on distance
-          const colorFactor = Math.min(1, distance / 150);
-          colors[i * 3 + 1] = 1.0 - colorFactor * 0.5;
-          colors[i * 3 + 2] = colorFactor;
-        }
-        
-        positions[i * 3] = x;
-        positions[i * 3 + 1] = y;
-        positions[i * 3 + 2] = z;
-      }
-      
-      windGeometry.attributes.position.needsUpdate = true;
-      windGeometry.attributes.color.needsUpdate = true;
-    }
-    
-    // Animate CME particles
-    function animateCME() {
-      if (!cmeActive) return;
-      
-      cmeParticles.children.forEach(burst => {
-        const positions = burst.geometry.attributes.position.array;
-        
-        for (let i = 0; i < positions.length; i += 3) {
-          positions[i] *= 1.05;
-          positions[i + 1] *= 1.05;
-          positions[i + 2] *= 1.05;
-        }
-        
-        burst.geometry.attributes.position.needsUpdate = true;
-        burst.material.opacity *= 0.99;
-      });
-    }
-    
-    // Simulate real-time solar data updates
-    function updateSolarData() {
-      // Simulate real-time data variations
-      const windSpeed = 400 + Math.random() * 200 + Math.sin(Date.now() * 0.0001) * 50;
-      const density = 3 + Math.random() * 5;
-      const magnetic = -5 + Math.random() * 10;
-      const xrayClass = ['A', 'B', 'C', 'M'][Math.floor(Math.random() * 4)];
-      const xrayLevel = (Math.random() * 9).toFixed(1);
-      
-      solarWindData.speed = windSpeed;
-      solarWindData.density = density;
-      solarWindData.magneticField = magnetic;
-      solarWindData.temperature = 40000 + Math.random() * 30000;
-      solarWindData.spiralAngle = 45 + Math.sin(Date.now() * 0.00005) * 15;
-      
-      document.getElementById('wind-speed').textContent = Math.round(windSpeed);
-      document.getElementById('particle-density').textContent = density.toFixed(1);
-      document.getElementById('magnetic-field').textContent = magnetic.toFixed(1);
-      document.getElementById('xray-flux').textContent = xrayClass + xrayLevel;
-      
-      // Update solar wind panel
-      document.getElementById('spiral-angle').textContent = Math.round(solarWindData.spiralAngle);
-      document.getElementById('imf-polarity').textContent = magnetic > 0 ? 'Away' : 'Toward';
-      document.getElementById('proton-temp').textContent = Math.round(solarWindData.temperature).toLocaleString();
-      
-      // Update activity level
-      const activityPercent = 20 + Math.random() * 60;
-      const activityBar = document.getElementById('activity-level');
-      activityBar.style.width = activityPercent + '%';
-      
-      if (activityPercent < 30) {
-        activityBar.innerHTML = '<span>Low</span>';
-      } else if (activityPercent < 60) {
-        activityBar.innerHTML = '<span>Moderate</span>';
-      } else {
-        activityBar.innerHTML = '<span>High</span>';
-      }
-      
-      // Update luminosity
-      const luminosity = 0.8 + Math.random() * 0.4;
-      sunMaterial.uniforms.luminosity.value = luminosity;
-      
-      // Update luminosity chart
-      const chart = document.getElementById('luminosity-chart');
-      const bars = chart.getElementsByClassName('luminosity-bar');
-      if (bars.length > 40) {
-        chart.removeChild(bars[0]);
-      }
-      
-      const newBar = document.createElement('div');
-      newBar.className = 'luminosity-bar';
-      newBar.style.left = `${bars.length * 2.5}px`;
-      newBar.style.height = `${luminosity * 70}%`;
-      chart.appendChild(newBar);
-      
-      // Random CME events
-      if (Math.random() > 0.98 && !cmeActive) {
-        createCME();
-        document.getElementById('cme-details').textContent = 
-          `Impact expected in ${24 + Math.round(Math.random() * 48)} hours`;
-      }
-      
-      // Random alerts
-      const alerts = [
-        'Minor G1 geomagnetic storm watch in effect',
-        'Solar wind speed elevated above 500 km/s',
-        'Coronal hole stream expected to arrive in 48 hours',
-        'No significant solar activity detected',
-        'M-class flare probability: 25% in next 24 hours'
-      ];
-      
-      if (Math.random() > 0.7) {
-        document.getElementById('solar-alert').textContent = 
-          alerts[Math.floor(Math.random() * alerts.length)];
-      }
-    }
-    
-    // Update solar data every 3 seconds
-    setInterval(updateSolarData, 3000);
-    updateSolarData();
-    
-    // Animation
-    let simulationTime = Date.now();
-    const baseDate = new Date('2025-01-01');
-    
-    function animate() {
-      requestAnimationFrame(animate);
-      
-      const deltaTime = orbitSpeed * 16; // 16ms per frame
-      simulationTime += deltaTime;
-      
-      // Update date display
-      const currentDate = new Date(baseDate.getTime() + simulationTime * 1000);
-      const dateString = currentDate.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      document.getElementById('date-display').textContent = dateString;
-      
-      // Update sun
-      sunMaterial.uniforms.time.value = performance.now() * 0.001;
-      sun.rotation.y += 0.001;
-      sunGlow.rotation.y -= 0.0005;
-      
-      // Animate solar wind
-      animateSolarWind();
-      animateCME();
-      
-      // Rotate magnetic field
-      if (magneticFieldGroup.visible) {
-        magneticFieldGroup.rotation.y += 0.0002;
-      }
-      
-      // Update planets
-      planetMeshes.forEach((planet, i) => {
-        const data = planets[i];
-        
-        // Orbital motion
-        const distance = planet.userData.currentDistance || data.distance;
-        planet.currentAngle += data.orbitSpeed * orbitSpeed * 0.01;
-        planet.position.x = Math.cos(planet.currentAngle) * distance;
-        planet.position.z = Math.sin(planet.currentAngle) * distance;
-        
-        // Rotation
-        planet.rotation.y += data.rotationSpeed * orbitSpeed;
-        
-        // Earth clouds
-        if (planet.clouds) {
-          planet.clouds.rotation.y += 0.0005 * orbitSpeed;
-        }
-      });
-      
-      // Rotate asteroid belt
-      if (asteroidBelt.visible) {
-        asteroidBelt.rotation.y += 0.0001 * orbitSpeed;
-      }
-      
-      // Rotate starfield slowly
-      stars.rotation.y += 0.0001;
-      
-      renderer.render(scene, camera);
-    }
-    
-    // Handle resize
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-    
-    // Start animation
-    updateCamera();
-    animate();
-  </script>
+    </script>
 </body>
 </html>
