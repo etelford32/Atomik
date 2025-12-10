@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth's Orbit - Real-Time Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .ui-panel {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(100, 150, 255, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        #info-panel {
+            top: 20px;
+            left: 20px;
+            min-width: 320px;
+        }
+
+        #controls-panel {
+            bottom: 20px;
+            left: 20px;
+            min-width: 300px;
+        }
+
+        #nasa-data-panel {
+            top: 20px;
+            right: 20px;
+            min-width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #6eb5ff;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid rgba(110, 181, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .stat-row {
+            margin: 12px 0;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .stat-label {
+            color: #a0c4ff;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-weight: 600;
+            float: right;
+        }
+
+        .date-display {
+            font-size: 1.8rem;
+            text-align: center;
+            color: #6eb5ff;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(110, 181, 255, 0.5);
+        }
+
+        .control-group {
+            margin: 20px 0;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #a0c4ff;
+            font-weight: 500;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.15);
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6eb5ff, #4a9fff);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(110, 181, 255, 0.6);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6eb5ff, #4a9fff);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(110, 181, 255, 0.6);
+            border: none;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin: 12px 0;
+        }
+
+        .checkbox-group input {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .checkbox-group label {
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #c0d8ff;
+        }
+
+        .season-indicator {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .season-spring { background: linear-gradient(135deg, #4ade80, #22c55e); }
+        .season-summer { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+        .season-autumn { background: linear-gradient(135deg, #fb923c, #ea580c); }
+        .season-winter { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+
+        .orbital-event {
+            background: rgba(110, 181, 255, 0.15);
+            border-left: 3px solid #6eb5ff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .nav-bar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-link {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(100, 150, 255, 0.4);
+            border-radius: 8px;
+            color: #6eb5ff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-link:hover {
+            background: rgba(110, 181, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(110, 181, 255, 0.3);
+        }
+
+        .highlight {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            color: #6eb5ff;
+            z-index: 1000;
+        }
+
+        .nasa-fact {
+            background: rgba(110, 181, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .speed-display {
+            color: #fbbf24;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .ui-panel {
+                min-width: 280px;
+                max-width: 90vw;
+            }
+
+            #nasa-data-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Initializing Earth Orbit Simulation...</div>
+
+    <nav class="nav-bar">
+        <a href="signup.html" class="nav-link">Home</a>
+        <a href="index.html" class="nav-link">Space Weather</a>
+        <a href="solar-system.html" class="nav-link">Solar System</a>
+    </nav>
+
+    <div id="canvas-container"></div>
+
+    <div id="info-panel" class="ui-panel">
+        <div class="panel-title">🌍 Earth's Journey</div>
+        <div class="date-display" id="current-date">January 1, 2025</div>
+
+        <div class="stat-row">
+            <span class="stat-label">Season (N. Hemisphere):</span>
+            <span class="stat-value" id="season-display">
+                <span class="season-indicator season-winter">Winter</span>
+            </span>
+        </div>
+
+        <div class="stat-row">
+            <span class="stat-label">Distance from Sun:</span>
+            <span class="stat-value" id="distance-display">147.1 million km</span>
+        </div>
+
+        <div class="stat-row">
+            <span class="stat-label">Orbital Speed:</span>
+            <span class="stat-value" id="speed-value">29.78 km/s</span>
+        </div>
+
+        <div class="stat-row">
+            <span class="stat-label">Day of Year:</span>
+            <span class="stat-value" id="day-of-year">1 / 365</span>
+        </div>
+
+        <div class="stat-row">
+            <span class="stat-label">Orbit Completed:</span>
+            <span class="stat-value" id="orbit-percent">0.27%</span>
+        </div>
+
+        <div class="orbital-event" id="next-event">
+            <strong>Next Event:</strong> Perihelion (closest to Sun)<br>
+            <span style="font-size: 0.85rem; color: #a0c4ff;">January 4, 2025 - 147.1 million km</span>
+        </div>
+    </div>
+
+    <div id="controls-panel" class="ui-panel">
+        <div class="panel-title">⚙️ Controls</div>
+
+        <div class="control-group">
+            <label class="control-label">
+                Time Speed: <span class="speed-display" id="speed-display">1 day/sec</span>
+            </label>
+            <input type="range" class="slider" id="speed-slider" min="0" max="100" value="10" step="1">
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="show-orbit" checked>
+            <label for="show-orbit">Show Orbital Path</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="show-axis" checked>
+            <label for="show-axis">Show Earth's Axis</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="show-markers" checked>
+            <label for="show-markers">Show Key Dates</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="show-terminator">
+            <label for="show-terminator">Enhanced Day/Night</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="realistic-scale">
+            <label for="realistic-scale">Realistic Scale</label>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(110, 181, 255, 0.3);">
+            <div style="font-size: 0.85rem; color: #a0c4ff; line-height: 1.5;">
+                🖱️ Left Click + Drag: Rotate<br>
+                🖱️ Scroll: Zoom In/Out<br>
+                🖱️ Right Click + Drag: Pan
+            </div>
+        </div>
+    </div>
+
+    <div id="nasa-data-panel" class="ui-panel">
+        <div class="panel-title">📊 NASA Orbital Data</div>
+
+        <div class="nasa-fact">
+            <strong>Orbital Period:</strong><br>
+            365.256 days (1 sidereal year)
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Average Distance (1 AU):</strong><br>
+            149.6 million km (92.96 million miles)
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Perihelion (Closest):</strong><br>
+            147.1 million km<br>
+            <span style="font-size: 0.85rem; color: #a0c4ff;">Occurs around January 4</span>
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Aphelion (Farthest):</strong><br>
+            152.1 million km<br>
+            <span style="font-size: 0.85rem; color: #a0c4ff;">Occurs around July 4</span>
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Orbital Eccentricity:</strong><br>
+            0.0167 (nearly circular)
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Orbital Speed Range:</strong><br>
+            29.29 km/s (aphelion) to 30.29 km/s (perihelion)<br>
+            Average: 29.78 km/s (107,200 km/h)
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Axial Tilt:</strong><br>
+            23.44° (23°26')<br>
+            <span style="font-size: 0.85rem; color: #a0c4ff;">This tilt causes our seasons!</span>
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Rotation Period:</strong><br>
+            23 hours, 56 minutes, 4 seconds (sidereal day)
+        </div>
+
+        <div class="nasa-fact">
+            <strong>Fun Fact:</strong><br>
+            Earth travels approximately 940 million km in one complete orbit around the Sun - that's about 2.5 million km per day!
+        </div>
+
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(110, 181, 255, 0.3); font-size: 0.8rem; color: #8ab4ff;">
+            Data Source: NASA Jet Propulsion Laboratory (JPL)<br>
+            Horizons System & Planetary Fact Sheets
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // NASA Orbital Parameters (Public Domain Data)
+        const ORBITAL_DATA = {
+            semiMajorAxis: 149.6,        // Million km (1 AU)
+            eccentricity: 0.0167,         // Orbital eccentricity
+            perihelion: 147.1,            // Million km (closest approach)
+            aphelion: 152.1,              // Million km (farthest distance)
+            orbitalPeriod: 365.256,       // Days
+            axialTilt: 23.44 * Math.PI / 180,  // Radians (23.44 degrees)
+            rotationPeriod: 0.99726968,   // Days (23h 56m 4s)
+            perihelionDate: new Date('2025-01-04'),  // Approximate
+            aphelionDate: new Date('2025-07-04'),    // Approximate
+            springEquinox: new Date('2025-03-20'),
+            summerSolstice: new Date('2025-06-21'),
+            autumnEquinox: new Date('2025-09-23'),
+            winterSolstice: new Date('2025-12-21')
+        };
+
+        // Scene setup
+        let scene, camera, renderer;
+        let earth, sun, orbit, axisLine;
+        let earthRotation = 0;
+        let simulationSpeed = 1; // Days per second
+        let currentDate = new Date('2025-01-01');
+        let realisticScale = false;
+
+        // Camera controls
+        let isMouseDown = false;
+        let isRightMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let cameraDistance = 250;
+        let cameraAngleX = 0;
+        let cameraAngleY = Math.PI / 6;
+        let cameraPanX = 0, cameraPanY = 0;
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 50000);
+            updateCameraPosition();
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Create scene
+            createStars();
+            createSun();
+            createEarth();
+            createOrbit();
+            createKeyDateMarkers();
+            createLighting();
+
+            // Event listeners
+            setupEventListeners();
+
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+
+            // Start animation
+            animate();
+        }
+
+        function createStars() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starCount = 15000;
+            const starPositions = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount * 3; i += 3) {
+                const radius = 1000 + Math.random() * 10000;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+
+                starPositions[i] = radius * Math.sin(phi) * Math.cos(theta);
+                starPositions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                starPositions[i + 2] = radius * Math.cos(phi);
+            }
+
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+
+            const starsMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1,
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+        }
+
+        function createSun() {
+            // Sun sphere
+            const sunGeometry = new THREE.SphereGeometry(20, 64, 64);
+            const sunMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffdd00,
+                emissive: 0xffdd00,
+                emissiveIntensity: 1
+            });
+            sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            scene.add(sun);
+
+            // Sun glow layers
+            const glowGeometry1 = new THREE.SphereGeometry(25, 32, 32);
+            const glowMaterial1 = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow1 = new THREE.Mesh(glowGeometry1, glowMaterial1);
+            sun.add(glow1);
+
+            const glowGeometry2 = new THREE.SphereGeometry(30, 32, 32);
+            const glowMaterial2 = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.15
+            });
+            const glow2 = new THREE.Mesh(glowGeometry2, glowMaterial2);
+            sun.add(glow2);
+        }
+
+        function createEarth() {
+            // Earth sphere
+            const earthGeometry = new THREE.SphereGeometry(6.371, 64, 64);
+
+            // Create a simple Earth-colored material
+            const earthMaterial = new THREE.MeshPhongMaterial({
+                color: 0x2E5EAA,
+                emissive: 0x112244,
+                emissiveIntensity: 0.1,
+                shininess: 25,
+                specular: 0x333333
+            });
+
+            earth = new THREE.Mesh(earthGeometry, earthMaterial);
+
+            // Add land masses as a separate layer (simplified)
+            const landGeometry = new THREE.SphereGeometry(6.372, 64, 64);
+            const landMaterial = new THREE.MeshPhongMaterial({
+                color: 0x228B22,
+                transparent: true,
+                opacity: 0.6
+            });
+            const land = new THREE.Mesh(landGeometry, landMaterial);
+            earth.add(land);
+
+            // Cloud layer
+            const cloudGeometry = new THREE.SphereGeometry(6.5, 64, 64);
+            const cloudMaterial = new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.2
+            });
+            const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+            earth.add(clouds);
+            earth.userData.clouds = clouds;
+
+            // Apply axial tilt
+            earth.rotation.z = ORBITAL_DATA.axialTilt;
+
+            scene.add(earth);
+
+            // Create axis line
+            const axisGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, -15, 0),
+                new THREE.Vector3(0, 15, 0)
+            ]);
+            const axisMaterial = new THREE.LineBasicMaterial({
+                color: 0xffff00,
+                transparent: true,
+                opacity: 0.6
+            });
+            axisLine = new THREE.Line(axisGeometry, axisMaterial);
+            earth.add(axisLine);
+        }
+
+        function createOrbit() {
+            // Create elliptical orbit using real NASA parameters
+            const orbitPoints = [];
+            const segments = 360;
+
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+
+                // Calculate distance using ellipse equation
+                const r = ORBITAL_DATA.semiMajorAxis * (1 - ORBITAL_DATA.eccentricity ** 2) /
+                         (1 + ORBITAL_DATA.eccentricity * Math.cos(angle));
+
+                orbitPoints.push(new THREE.Vector3(
+                    r * Math.cos(angle),
+                    0,
+                    r * Math.sin(angle)
+                ));
+            }
+
+            const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+            const orbitMaterial = new THREE.LineBasicMaterial({
+                color: 0x6eb5ff,
+                transparent: true,
+                opacity: 0.5
+            });
+            orbit = new THREE.Line(orbitGeometry, orbitMaterial);
+            scene.add(orbit);
+        }
+
+        function createKeyDateMarkers() {
+            const markerGroup = new THREE.Group();
+            markerGroup.name = 'dateMarkers';
+
+            const markers = [
+                { angle: 0, label: 'Jan 1', color: 0xffffff },
+                { angle: Math.PI / 2, label: 'Apr 1', color: 0x4ade80 },
+                { angle: Math.PI, label: 'Jul 1', color: 0xfbbf24 },
+                { angle: 3 * Math.PI / 2, label: 'Oct 1', color: 0xfb923c }
+            ];
+
+            markers.forEach(marker => {
+                const r = ORBITAL_DATA.semiMajorAxis * (1 - ORBITAL_DATA.eccentricity ** 2) /
+                         (1 + ORBITAL_DATA.eccentricity * Math.cos(marker.angle));
+
+                const markerGeometry = new THREE.SphereGeometry(2, 16, 16);
+                const markerMaterial = new THREE.MeshBasicMaterial({
+                    color: marker.color,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
+                markerMesh.position.set(
+                    r * Math.cos(marker.angle),
+                    0,
+                    r * Math.sin(marker.angle)
+                );
+                markerGroup.add(markerMesh);
+            });
+
+            scene.add(markerGroup);
+        }
+
+        function createLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x333333, 0.4);
+            scene.add(ambientLight);
+
+            // Sun light
+            const sunLight = new THREE.PointLight(0xffffff, 2, 5000);
+            sunLight.position.set(0, 0, 0);
+            scene.add(sunLight);
+        }
+
+        function getDayOfYear(date) {
+            const start = new Date(date.getFullYear(), 0, 0);
+            const diff = date - start;
+            const oneDay = 1000 * 60 * 60 * 24;
+            return Math.floor(diff / oneDay);
+        }
+
+        function getOrbitalAngle(date) {
+            // Calculate angle based on days since perihelion (Jan 4)
+            const perihelion = new Date(date.getFullYear(), 0, 4); // Jan 4
+
+            let daysSincePerihelion = (date - perihelion) / (1000 * 60 * 60 * 24);
+
+            // Handle negative days (before perihelion)
+            if (daysSincePerihelion < 0) {
+                daysSincePerihelion += ORBITAL_DATA.orbitalPeriod;
+            }
+
+            // Convert to angle (0 = perihelion, which is roughly 90 degrees rotated)
+            const angle = (daysSincePerihelion / ORBITAL_DATA.orbitalPeriod) * Math.PI * 2;
+
+            return angle;
+        }
+
+        function getDistanceFromSun(angle) {
+            // Calculate distance using ellipse equation
+            return ORBITAL_DATA.semiMajorAxis * (1 - ORBITAL_DATA.eccentricity ** 2) /
+                   (1 + ORBITAL_DATA.eccentricity * Math.cos(angle));
+        }
+
+        function getOrbitalSpeed(distance) {
+            // Kepler's laws - speed varies with distance
+            // v = sqrt(GM(2/r - 1/a))
+            // Simplified: speed is inversely proportional to distance
+            const speedAtPerihelion = 30.29; // km/s
+            const speedAtAphelion = 29.29; // km/s
+
+            // Linear interpolation
+            const t = (distance - ORBITAL_DATA.perihelion) / (ORBITAL_DATA.aphelion - ORBITAL_DATA.perihelion);
+            return speedAtPerihelion - t * (speedAtPerihelion - speedAtAphelion);
+        }
+
+        function getSeason(date) {
+            const month = date.getMonth();
+            const day = date.getDate();
+
+            // Northern Hemisphere seasons
+            if ((month === 2 && day >= 20) || (month > 2 && month < 5) || (month === 5 && day < 21)) {
+                return { name: 'Spring', class: 'season-spring' };
+            } else if ((month === 5 && day >= 21) || (month > 5 && month < 8) || (month === 8 && day < 23)) {
+                return { name: 'Summer', class: 'season-summer' };
+            } else if ((month === 8 && day >= 23) || (month > 8 && month < 11) || (month === 11 && day < 21)) {
+                return { name: 'Autumn', class: 'season-autumn' };
+            } else {
+                return { name: 'Winter', class: 'season-winter' };
+            }
+        }
+
+        function getNextEvent(date) {
+            const events = [
+                { name: 'Perihelion', date: new Date(date.getFullYear(), 0, 4), distance: '147.1 million km' },
+                { name: 'Spring Equinox', date: new Date(date.getFullYear(), 2, 20), distance: '' },
+                { name: 'Aphelion', date: new Date(date.getFullYear(), 6, 4), distance: '152.1 million km' },
+                { name: 'Summer Solstice', date: new Date(date.getFullYear(), 5, 21), distance: '' },
+                { name: 'Autumn Equinox', date: new Date(date.getFullYear(), 8, 23), distance: '' },
+                { name: 'Winter Solstice', date: new Date(date.getFullYear(), 11, 21), distance: '' }
+            ];
+
+            // Find next event
+            let nextEvent = null;
+            let minDiff = Infinity;
+
+            events.forEach(event => {
+                const diff = event.date - date;
+                if (diff > 0 && diff < minDiff) {
+                    minDiff = diff;
+                    nextEvent = event;
+                }
+            });
+
+            // If no future event this year, get first event of next year
+            if (!nextEvent) {
+                nextEvent = events[0];
+                nextEvent.date = new Date(date.getFullYear() + 1, 0, 4);
+            }
+
+            return nextEvent;
+        }
+
+        function updateUI() {
+            // Update date
+            document.getElementById('current-date').textContent = currentDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // Calculate orbital parameters
+            const angle = getOrbitalAngle(currentDate);
+            const distance = getDistanceFromSun(angle);
+            const speed = getOrbitalSpeed(distance);
+            const dayOfYear = getDayOfYear(currentDate);
+            const season = getSeason(currentDate);
+            const nextEvent = getNextEvent(currentDate);
+
+            // Update season
+            const seasonDisplay = document.getElementById('season-display');
+            seasonDisplay.innerHTML = `<span class="season-indicator ${season.class}">${season.name}</span>`;
+
+            // Update distance
+            document.getElementById('distance-display').textContent = distance.toFixed(2) + ' million km';
+
+            // Update speed
+            document.getElementById('speed-value').textContent = speed.toFixed(2) + ' km/s';
+
+            // Update day of year
+            document.getElementById('day-of-year').textContent = `${dayOfYear} / 365`;
+
+            // Update orbit percentage
+            const orbitPercent = ((dayOfYear / 365) * 100).toFixed(2);
+            document.getElementById('orbit-percent').textContent = orbitPercent + '%';
+
+            // Update next event
+            const eventHTML = `<strong>Next Event:</strong> ${nextEvent.name}<br>
+                <span style="font-size: 0.85rem; color: #a0c4ff;">
+                    ${nextEvent.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    ${nextEvent.distance ? ' - ' + nextEvent.distance : ''}
+                </span>`;
+            document.getElementById('next-event').innerHTML = eventHTML;
+        }
+
+        function updateEarthPosition() {
+            const angle = getOrbitalAngle(currentDate);
+            const distance = getDistanceFromSun(angle) * (realisticScale ? 3 : 1);
+
+            earth.position.x = distance * Math.cos(angle);
+            earth.position.z = distance * Math.sin(angle);
+
+            // Rotate Earth on its axis
+            earthRotation += 0.01 * simulationSpeed;
+            earth.rotation.y = earthRotation;
+
+            // Rotate clouds slightly faster
+            if (earth.userData.clouds) {
+                earth.userData.clouds.rotation.y += 0.0005 * simulationSpeed;
+            }
+        }
+
+        function updateCameraPosition() {
+            const x = cameraPanX + cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+            const y = cameraPanY + cameraDistance * Math.sin(cameraAngleY);
+            const z = cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+
+            camera.position.set(x, y, z);
+            camera.lookAt(cameraPanX, cameraPanY, 0);
+        }
+
+        function setupEventListeners() {
+            const canvas = renderer.domElement;
+
+            // Mouse controls
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) {
+                    isMouseDown = true;
+                } else if (e.button === 2) {
+                    isRightMouseDown = true;
+                }
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('mouseup', (e) => {
+                if (e.button === 0) isMouseDown = false;
+                if (e.button === 2) isRightMouseDown = false;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                isMouseDown = false;
+                isRightMouseDown = false;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isMouseDown) {
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
+
+                    cameraAngleX += deltaX * 0.005;
+                    cameraAngleY += deltaY * 0.005;
+                    cameraAngleY = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraAngleY));
+
+                    updateCameraPosition();
+                } else if (isRightMouseDown) {
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
+
+                    cameraPanX -= deltaX * 0.5;
+                    cameraPanY += deltaY * 0.5;
+
+                    updateCameraPosition();
+                }
+
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                cameraDistance += e.deltaY * 0.5;
+                cameraDistance = Math.max(30, Math.min(1000, cameraDistance));
+                updateCameraPosition();
+            });
+
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // Speed slider
+            document.getElementById('speed-slider').addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                // Exponential scale for better control
+                simulationSpeed = Math.pow(value / 10, 2);
+
+                let speedText;
+                if (simulationSpeed < 0.1) {
+                    speedText = (simulationSpeed * 24).toFixed(1) + ' hours/sec';
+                } else if (simulationSpeed < 1) {
+                    speedText = simulationSpeed.toFixed(2) + ' days/sec';
+                } else if (simulationSpeed < 30) {
+                    speedText = simulationSpeed.toFixed(1) + ' days/sec';
+                } else {
+                    speedText = (simulationSpeed / 30).toFixed(1) + ' months/sec';
+                }
+
+                document.getElementById('speed-display').textContent = speedText;
+            });
+
+            // Checkboxes
+            document.getElementById('show-orbit').addEventListener('change', (e) => {
+                orbit.visible = e.target.checked;
+            });
+
+            document.getElementById('show-axis').addEventListener('change', (e) => {
+                axisLine.visible = e.target.checked;
+            });
+
+            document.getElementById('show-markers').addEventListener('change', (e) => {
+                const markers = scene.getObjectByName('dateMarkers');
+                if (markers) markers.visible = e.target.checked;
+            });
+
+            document.getElementById('realistic-scale').addEventListener('change', (e) => {
+                realisticScale = e.target.checked;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update simulation time (60 FPS = 1000/60 ms per frame)
+            const msPerFrame = 1000 / 60;
+            const daysPerFrame = simulationSpeed / 60; // simulationSpeed is days per second
+            currentDate = new Date(currentDate.getTime() + daysPerFrame * 24 * 60 * 60 * 1000);
+
+            // Update Earth position and rotation
+            updateEarthPosition();
+
+            // Update UI (throttled to avoid too many updates)
+            if (Math.random() < 0.1) { // Update UI ~6 times per second
+                updateUI();
+            }
+
+            // Render scene
+            renderer.render(scene, camera);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
