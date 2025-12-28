@@ -5,14 +5,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Atomik - Celestial Tracking App</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <title>Join Atomik Beta - Real-Time Solar System Exploration</title>
+    <meta name="description" content="Sign up for Atomik beta access and explore the cosmos in real-time with NASA-powered simulations. Free during beta!">
+    <meta property="og:title" content="Join Atomik Beta - Real-Time Solar System Exploration">
+    <meta property="og:description" content="Sign up for Atomik beta access and explore the cosmos in real-time with NASA-powered simulations.">
+    <meta property="og:type" content="website">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #0e0f1a;
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0e27;
             color: white;
             overflow-x: hidden;
             text-align: center;
@@ -143,16 +147,33 @@
             font-family: 'Orbitron', sans-serif;
             font-size: 4rem;
             margin: 20px 0;
-            background: linear-gradient(to right, #fff 5%, #ff8c00 40%, #ff4500 60%, #fff 95%);
+            background: linear-gradient(135deg, #ffffff, #6eb5ff, #fbbf24);
             background-size: 200% auto;
             color: transparent;
             background-clip: text;
             -webkit-background-clip: text;
-            text-shadow: 0 0 20px rgba(255, 140, 0, 0.7), 0 0 30px rgba(255, 70, 0, 0.5);
             position: relative;
             z-index: 1;
-            animation: shine 4s linear infinite, pulse 3s ease-in-out infinite;
+            animation: shine 4s linear infinite;
             letter-spacing: 5px;
+        }
+
+        .beta-badge-header {
+            display: inline-block;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #0a0e27;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin: 20px 0;
+            animation: pulse-badge 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(251, 191, 36, 0.6); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(251, 191, 36, 0.9); }
         }
         
         @keyframes shine {
@@ -344,12 +365,31 @@
         }
 
         .signup-form {
-            background-color: rgba(0, 0, 0, 0.5);
-            max-width: 500px;
+            background: linear-gradient(135deg, rgba(15, 15, 35, 0.9), rgba(25, 25, 55, 0.8));
+            border: 1px solid rgba(110, 181, 255, 0.3);
+            max-width: 550px;
             margin: 40px auto;
-            padding: 30px;
-            border-radius: 10px;
+            padding: 40px;
+            border-radius: 20px;
             position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .signup-form h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            background: linear-gradient(135deg, #6eb5ff, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .signup-form .subtitle {
+            color: #a0c4ff;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
         }
 
         .form-group {
@@ -360,20 +400,29 @@
         .signup-form input,
         .signup-form textarea {
             width: 100%;
-            padding: 12px;
+            padding: 15px;
             margin-bottom: 5px;
-            border-radius: 5px;
-            border: 1px solid transparent;
-            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            border: 2px solid rgba(110, 181, 255, 0.2);
+            background-color: rgba(255, 255, 255, 0.95);
             box-sizing: border-box;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            color: #0a0e27;
+        }
+
+        .signup-form input::placeholder,
+        .signup-form textarea::placeholder {
+            color: rgba(10, 14, 39, 0.5);
         }
 
         .signup-form input:focus,
         .signup-form textarea:focus {
             outline: none;
-            border-color: #ff8c00;
-            box-shadow: 0 0 8px rgba(255, 140, 0, 0.6);
+            border-color: #6eb5ff;
+            box-shadow: 0 0 15px rgba(110, 181, 255, 0.4);
+            transform: translateY(-2px);
         }
 
         .error-message {
@@ -386,30 +435,48 @@
         }
 
         .signup-form button {
-            padding: 12px 30px;
-            background: linear-gradient(145deg, #ff8c00, #ff6a00);
+            padding: 18px 50px;
+            background: linear-gradient(135deg, #6eb5ff, #4a9fff);
             color: white;
             border: none;
             cursor: pointer;
-            border-radius: 25px;
+            border-radius: 30px;
             transition: all 0.3s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             position: relative;
             overflow: hidden;
+            font-size: 1.1rem;
+            font-weight: 700;
+            width: 100%;
+            margin-top: 10px;
         }
 
         .signup-form button:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px rgba(255, 140, 0, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(110, 181, 255, 0.6);
         }
 
         .signup-form button:disabled {
-            background: #888;
+            background: linear-gradient(135deg, #888, #666);
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #6eb5ff;
+            text-decoration: none;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            color: #8ab4ff;
+            transform: translateX(-5px);
         }
 
         .spinner {
@@ -513,24 +580,47 @@
                 letter-spacing: 3px;
             }
 
+            .beta-badge-header {
+                font-size: 0.85rem;
+                padding: 6px 15px;
+            }
+
             .experience-btn {
                 min-width: 100%;
                 max-width: 300px;
             }
-            
+
             .logo {
                 width: 90px;
                 border-radius: 18px;
             }
-            
+
             .logo-ring {
                 width: 120px;
                 height: 120px;
             }
-            
+
             .feature-box {
                 width: 100%;
                 max-width: 300px;
+            }
+
+            .signup-form {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+
+            .signup-form h2 {
+                font-size: 1.5rem;
+            }
+
+            .signup-form .subtitle {
+                font-size: 1rem;
+            }
+
+            .signup-form button {
+                padding: 15px 30px;
+                font-size: 1rem;
             }
         }
     </style>
@@ -546,7 +636,9 @@
             <div class="logo-particles"></div>
         </div>
         <h1 data-text="ATOMIK">ATOMIK</h1>
-        <p class="tagline">Advanced celestial tracking and predictive modeling in real-time.</p>
+        <div class="beta-badge-header">BETA LAUNCH</div>
+        <p class="tagline">Join the beta and explore the cosmos in real-time with NASA-powered simulations.</p>
+        <a href="index.html" class="back-link">← Back to Home</a>
     </header>
 
     <section class="feature-container">
@@ -612,36 +704,37 @@
     </section>
 
     <section class="signup-form">
-        <h2>Join the Beta</h2>
+        <h2>Join the Atomik Beta</h2>
+        <p class="subtitle">Get exclusive early access to real-time solar system simulations. 100% free during beta!</p>
         <div class="form-group">
-            <input type="text" id="name" placeholder="Your Name" required>
+            <input type="text" id="name" placeholder="Full Name *" required>
             <span class="error-message" id="name-error"></span>
         </div>
         <div class="form-group">
-            <input type="email" id="email" placeholder="Your Email" required>
+            <input type="email" id="email" placeholder="Email Address *" required>
             <span class="error-message" id="email-error"></span>
         </div>
         <div class="form-group">
-            <input type="text" id="company" placeholder="Company">
+            <input type="text" id="company" placeholder="Company or Organization (Optional)">
             <span class="error-message"></span>
         </div>
         <div class="form-group">
-            <input type="tel" id="phone" placeholder="Phone Number">
+            <input type="tel" id="phone" placeholder="Phone Number (Optional)">
             <span class="error-message" id="phone-error"></span>
         </div>
         <div class="form-group">
-            <textarea id="comment" placeholder="Feature request or comments" rows="4"></textarea>
+            <textarea id="comment" placeholder="What excites you most about Atomik? Any specific features you'd like to see?" rows="4"></textarea>
             <span class="error-message"></span>
         </div>
         <button id="submit-btn" onclick="validateForm()">
             <div class="spinner" id="spinner"></div>
-            <span>Sign Up</span>
+            <span>Join Beta - It's Free</span>
         </button>
 
         <div class="success-message" id="success-message">
-            <h3>Thank You for Joining Atomik Beta!</h3>
-            <p>We'll be in touch with more information soon.</p>
-            <button onclick="dismissSuccess()">Close</button>
+            <h3>🎉 Welcome to Atomik Beta!</h3>
+            <p>Thank you for signing up! Check your email for access instructions and beta updates.</p>
+            <button onclick="dismissSuccess()">Start Exploring</button>
         </div>
     </section>
 
@@ -1103,6 +1196,10 @@
         function dismissSuccess() {
             const successMessage = document.getElementById('success-message');
             successMessage.classList.remove('show');
+            // Redirect to home page after dismissing
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 300);
         }
 
         // Reset form

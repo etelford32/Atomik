@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Atomik - Real-Time Solar System Exploration</title>
+    <title>Atomik - Real-Time Solar System Exploration | Beta Launch</title>
+    <meta name="description" content="Join the Atomik beta and explore the cosmos in real-time with NASA-powered simulations. Track planetary orbits, space weather, and celestial mechanics.">
+    <meta property="og:title" content="Atomik - Real-Time Solar System Exploration">
+    <meta property="og:description" content="Join the Atomik beta and explore the cosmos in real-time with NASA-powered simulations.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Atomik - Real-Time Solar System Exploration">
+    <meta name="twitter:description" content="Join the Atomik beta and explore the cosmos in real-time with NASA-powered simulations.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -64,6 +71,25 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .beta-badge {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #0a0e27;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            animation: pulse-badge 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(251, 191, 36, 0.8); }
         }
 
         .nav-links {
@@ -531,6 +557,104 @@
             font-size: 2rem;
             color: #6eb5ff;
         }
+
+        /* Social Proof Section */
+        .social-proof {
+            padding: 60px 50px;
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #6eb5ff, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #8ab4ff;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        /* FAQ Section */
+        .faq-section {
+            padding: 100px 50px;
+            max-width: 900px;
+            margin: 0 auto;
+            background: linear-gradient(180deg, rgba(10, 14, 39, 0) 0%, rgba(15, 23, 42, 0.3) 100%);
+        }
+
+        .faq-item {
+            background: rgba(15, 15, 35, 0.6);
+            border: 1px solid rgba(110, 181, 255, 0.2);
+            border-radius: 15px;
+            padding: 25px 30px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .faq-item:hover {
+            border-color: rgba(110, 181, 255, 0.5);
+            transform: translateX(5px);
+        }
+
+        .faq-question {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: #6eb5ff;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .faq-answer {
+            color: #a0c4ff;
+            line-height: 1.8;
+            font-size: 1rem;
+        }
+
+        .beta-announcement {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(110, 181, 255, 0.1));
+            border: 2px solid rgba(251, 191, 36, 0.3);
+            border-radius: 15px;
+            padding: 20px 40px;
+            margin: 30px auto;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .beta-announcement h3 {
+            color: #fbbf24;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .beta-announcement p {
+            color: #a0c4ff;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -539,12 +663,15 @@
 
     <!-- Navigation -->
     <nav>
-        <div class="logo">ATOMIK</div>
+        <div class="logo">
+            <span>ATOMIK</span>
+            <span class="beta-badge">BETA</span>
+        </div>
         <div class="nav-links">
             <a href="#features">Features</a>
             <a href="#simulations">Simulations</a>
-            <a href="#about">About</a>
-            <a href="signup.html" class="cta-button">Get Early Access</a>
+            <a href="#faq">FAQ</a>
+            <a href="signup.html" class="cta-button">Join Beta Now</a>
         </div>
     </nav>
 
@@ -552,7 +679,13 @@
     <section class="hero">
         <div class="hero-content">
             <h1>Explore the Cosmos<br>in Real-Time</h1>
-            <p class="tagline">Experience Earth's journey through space with NASA-powered simulations</p>
+            <p class="tagline">Join the Beta - Experience Earth's journey through space with NASA-powered simulations</p>
+
+            <div class="beta-announcement">
+                <h3>🚀 Beta Launch - Limited Access Available</h3>
+                <p>Be among the first to explore real-time solar system simulations. Sign up now for exclusive early access!</p>
+            </div>
+
             <p class="description">
                 Atomik brings the solar system to your fingertips. Watch Earth orbit the Sun in real-time,
                 explore planetary motion with accurate NASA data, and witness the beauty of celestial mechanics
@@ -560,9 +693,9 @@
             </p>
             <div class="hero-cta">
                 <button class="primary-cta" onclick="window.location.href='signup.html'">
-                    Start Your Journey
+                    Join Beta - It's Free
                 </button>
-                <a href="#simulations" class="secondary-cta">Explore Simulations</a>
+                <a href="#simulations" class="secondary-cta">See What's Included</a>
             </div>
 
             <!-- Animated Preview -->
@@ -704,22 +837,115 @@
         </div>
     </section>
 
+    <!-- Social Proof -->
+    <section class="social-proof">
+        <h2 class="section-title">Join Early Adopters</h2>
+        <p class="section-subtitle">
+            Be part of the growing community of space enthusiasts and educators
+        </p>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number" id="beta-users">500+</div>
+                <div class="stat-label">Beta Testers</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">3</div>
+                <div class="stat-label">Live Simulations</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">Free During Beta</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">24/7</div>
+                <div class="stat-label">Access</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section" id="faq">
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-subtitle">Everything you need to know about the Atomik beta</p>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                What is Atomik Beta?
+            </div>
+            <div class="faq-answer">
+                Atomik Beta is early access to our real-time solar system exploration platform. You'll get to experience cutting-edge NASA-powered simulations before the official launch, completely free.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                Is the beta really free?
+            </div>
+            <div class="faq-answer">
+                Yes! Beta access is completely free. We're looking for feedback from space enthusiasts, educators, and astronomy lovers to help us improve the platform before our official launch.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                What simulations are included?
+            </div>
+            <div class="faq-answer">
+                Beta users get access to Earth's Orbit simulation, Full Solar System view, and Space Weather Monitor. All simulations use real NASA JPL orbital data and update in real-time.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                What devices are supported?
+            </div>
+            <div class="faq-answer">
+                Atomik works on all modern desktop and mobile browsers. For the best experience, we recommend using Chrome, Firefox, or Safari on a device with WebGL support.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                How long will the beta last?
+            </div>
+            <div class="faq-answer">
+                The beta period will run for approximately 3-6 months as we gather feedback and refine the experience. Beta users will receive priority access to all future features.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                Can I provide feedback?
+            </div>
+            <div class="faq-answer">
+                Absolutely! We encourage all beta users to share their thoughts, report bugs, and suggest features. Use the feedback form in your account or email us directly.
+            </div>
+        </div>
+    </section>
+
     <!-- Final CTA -->
     <section class="final-cta">
-        <h2>Ready to Explore?</h2>
-        <p>Join the beta and unlock exclusive access to real-time solar system simulations</p>
+        <h2>Ready to Explore the Universe?</h2>
+        <p>Join the Atomik beta today and unlock exclusive access to real-time solar system simulations powered by NASA data</p>
         <button class="primary-cta" onclick="window.location.href='signup.html'">
-            Get Early Access Now
+            Join Beta - It's Free
         </button>
     </section>
 
     <!-- Footer -->
     <footer>
         <p>
-            <a href="signup.html">Sign Up</a>
+            <a href="signup.html">Join Beta</a>
+            <a href="#features">Features</a>
+            <a href="#faq">FAQ</a>
             <a href="space-weather.html">Space Weather</a>
             <a href="solar-system.html">Solar System</a>
             <a href="earth-orbit.html">Earth's Orbit</a>
+        </p>
+        <p style="margin-top: 20px;">
+            <a href="#terms" style="font-size: 0.85rem;">Terms of Service</a>
+            <a href="#privacy" style="font-size: 0.85rem;">Privacy Policy</a>
+            <a href="#contact" style="font-size: 0.85rem;">Contact</a>
         </p>
         <p style="margin-top: 20px; font-size: 0.9rem;">
             Data Source: NASA Jet Propulsion Laboratory (JPL) - Public Domain
