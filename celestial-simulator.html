@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestial Simulator - Atomik</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+            user-select: none;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            z-index: 9999;
+            transition: opacity 0.6s ease;
+        }
+
+        #loading.fade-out { opacity: 0; pointer-events: none; }
+
+        #loading h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            background: linear-gradient(135deg, #6eb5ff, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        #loading p { color: #5a7ea8; font-size: 0.85rem; }
+
+        /* ---- Navigation ---- */
+        .nav-bar {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 200;
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-link {
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(110, 181, 255, 0.2);
+            border-radius: 8px;
+            color: #a0c4ff;
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(12px);
+        }
+
+        .nav-link:hover {
+            background: rgba(110, 181, 255, 0.15);
+            border-color: rgba(110, 181, 255, 0.5);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        /* ---- Info Panel ---- */
+        #info-panel {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            width: 280px;
+            background: rgba(6, 10, 28, 0.85);
+            border: 1px solid rgba(110, 181, 255, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(16px);
+            z-index: 200;
+            overflow: hidden;
+            transition: height 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        #info-panel:hover { box-shadow: 0 4px 32px rgba(110, 181, 255, 0.1); }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: move;
+            border-bottom: 1px solid rgba(110, 181, 255, 0.1);
+        }
+
+        .panel-header h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #6eb5ff;
+            letter-spacing: 0.5px;
+        }
+
+        .panel-minimize {
+            width: 24px;
+            height: 24px;
+            background: rgba(110, 181, 255, 0.1);
+            border: 1px solid rgba(110, 181, 255, 0.25);
+            border-radius: 6px;
+            color: #6eb5ff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            line-height: 1;
+        }
+
+        .panel-minimize:hover {
+            background: rgba(110, 181, 255, 0.25);
+            color: #fff;
+        }
+
+        .panel-body { padding: 12px 16px 16px; }
+
+        #info-panel.minimized .panel-body { display: none; }
+        #info-panel.minimized { border-radius: 12px; }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .data-row:last-child { border-bottom: none; }
+
+        .data-label {
+            font-size: 0.7rem;
+            color: #5a7ea8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+        }
+
+        .data-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: #c8ddf5;
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .data-section-label {
+            font-size: 0.65rem;
+            color: #3d5a80;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-weight: 700;
+            padding: 8px 0 4px;
+            margin-top: 4px;
+        }
+
+        /* ---- Timeline Controls ---- */
+        #timeline {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: linear-gradient(to top, rgba(6, 10, 28, 0.95), rgba(6, 10, 28, 0.7));
+            border-top: 1px solid rgba(110, 181, 255, 0.12);
+            backdrop-filter: blur(16px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 12px;
+        }
+
+        .tl-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .tl-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(110, 181, 255, 0.08);
+            border: 1px solid rgba(110, 181, 255, 0.2);
+            border-radius: 8px;
+            color: #a0c4ff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .tl-btn:hover {
+            background: rgba(110, 181, 255, 0.2);
+            color: #fff;
+            border-color: rgba(110, 181, 255, 0.5);
+        }
+
+        .tl-btn.active {
+            background: rgba(110, 181, 255, 0.25);
+            color: #fff;
+            border-color: #6eb5ff;
+        }
+
+        .tl-speed {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: #6eb5ff;
+            background: rgba(110, 181, 255, 0.08);
+            border: 1px solid rgba(110, 181, 255, 0.2);
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            min-width: 64px;
+            text-align: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .tl-speed:hover {
+            background: rgba(110, 181, 255, 0.15);
+            color: #fff;
+        }
+
+        .tl-scrubber-container {
+            flex: 1;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .tl-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(110, 181, 255, 0.12);
+            border-radius: 2px;
+            position: relative;
+            overflow: visible;
+        }
+
+        .tl-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #4a7fba, #6eb5ff);
+            border-radius: 2px;
+            position: relative;
+            transition: width 0.05s linear;
+        }
+
+        .tl-thumb {
+            position: absolute;
+            top: 50%;
+            right: -6px;
+            width: 12px;
+            height: 12px;
+            background: #6eb5ff;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 8px rgba(110, 181, 255, 0.6);
+            transition: transform 0.15s ease;
+        }
+
+        .tl-scrubber-container:hover .tl-thumb { transform: translateY(-50%) scale(1.3); }
+
+        .tl-date {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #c8ddf5;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: 170px;
+            text-align: right;
+        }
+
+        .tl-year-labels {
+            position: absolute;
+            bottom: -14px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.55rem;
+            color: #3d5a80;
+            pointer-events: none;
+        }
+
+        /* ---- Responsive ---- */
+        @media (max-width: 768px) {
+            #info-panel { width: 240px; top: 10px; left: 10px; }
+            .nav-bar { top: 10px; right: 10px; gap: 4px; }
+            .nav-link { padding: 6px 10px; font-size: 0.7rem; }
+            #timeline { height: 48px; padding: 0 12px; gap: 8px; }
+            .tl-btn { width: 28px; height: 28px; font-size: 11px; }
+            .tl-date { font-size: 0.65rem; min-width: 140px; }
+        }
+
+        @media (max-width: 480px) {
+            .nav-bar { flex-wrap: wrap; }
+            #info-panel { width: 200px; }
+            .tl-year-labels { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loading">
+    <h1>ATOMIK</h1>
+    <p>Initializing Celestial Simulator...</p>
+</div>
+
+<!-- Three.js Canvas -->
+<div id="canvas-container"></div>
+
+<!-- Navigation -->
+<nav class="nav-bar">
+    <a href="index.html" class="nav-link">Home</a>
+    <a href="solar-system.html" class="nav-link">Solar System</a>
+    <a href="earth-orbit.html" class="nav-link">Earth Orbit</a>
+    <a href="space-weather.html" class="nav-link">Space Weather</a>
+</nav>
+
+<!-- Info Panel (draggable, minimizable) -->
+<div id="info-panel">
+    <div class="panel-header" id="panel-header">
+        <h2>CELESTIAL DATA</h2>
+        <button class="panel-minimize" id="panel-toggle" title="Minimize">&#8722;</button>
+    </div>
+    <div class="panel-body">
+        <div class="data-section-label">Sun (Geocentric)</div>
+        <div class="data-row">
+            <span class="data-label">RA</span>
+            <span class="data-value" id="val-ra">--h --m --s</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">Dec</span>
+            <span class="data-value" id="val-dec">--° --' --"</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">Distance</span>
+            <span class="data-value" id="val-dist">-- AU</span>
+        </div>
+        <div class="data-section-label">Simulation</div>
+        <div class="data-row">
+            <span class="data-label">Time (UTC)</span>
+            <span class="data-value" id="val-time">--:--:--</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">Day of Year</span>
+            <span class="data-value" id="val-doy">---</span>
+        </div>
+        <div class="data-row">
+            <span class="data-label">Year</span>
+            <span class="data-value" id="val-year">----</span>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline Controls -->
+<div id="timeline">
+    <div class="tl-controls">
+        <button class="tl-btn" id="btn-step-back-day" title="Step back 1 day">&#9664;&#9664;</button>
+        <button class="tl-btn" id="btn-step-back" title="Step back 1 hour">&#9664;</button>
+        <button class="tl-btn active" id="btn-play" title="Play / Pause">&#9654;</button>
+        <button class="tl-btn" id="btn-step-fwd" title="Step forward 1 hour">&#9654;</button>
+        <button class="tl-btn" id="btn-step-fwd-day" title="Step forward 1 day">&#9654;&#9654;</button>
+    </div>
+    <div class="tl-speed" id="speed-display" title="Click to cycle speed">1x</div>
+    <div class="tl-scrubber-container" id="scrubber-container">
+        <div class="tl-track">
+            <div class="tl-progress" id="scrubber-progress">
+                <div class="tl-thumb"></div>
+            </div>
+        </div>
+        <div class="tl-year-labels">
+            <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
+            <span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
+        </div>
+    </div>
+    <div class="tl-date" id="date-display">-- --- ---- --:--:-- UTC</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+// SECTION 1: CONSTANTS & ORBITAL ELEMENTS
+// Keplerian elements from JPL (J2000.0 epoch)
+// Reference: https://ssd.jpl.nasa.gov/planets/approx_pos.html
+// ============================================================
+
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+const AU_KM = 149597870.7;       // 1 AU in kilometers
+const AU_TO_SCENE = 200;         // Scene scale: 1 AU = 200 units
+const J2000_EPOCH_MS = Date.UTC(2000, 0, 1, 12, 0, 0); // J2000.0 epoch in ms
+const MS_PER_DAY = 86400000;
+const OBLIQUITY_J2000 = 23.439291; // Obliquity of ecliptic at J2000 (degrees)
+
+// Earth's orbital elements at J2000.0 with linear century rates
+// These linear rates capture apsidal precession and secular perturbations
+// to first order. For full precession prediction engine, replace with
+// polynomial or numerical integration (Milankovitch-scale accuracy).
+const EARTH_ELEMENTS = {
+    a0:  1.00000261,     aRate:  0.00000562,    // Semi-major axis (AU)
+    e0:  0.01671123,     eRate: -0.00004392,    // Eccentricity
+    I0: -0.00001531,     IRate: -0.01294668,    // Inclination (deg)
+    L0:  100.46457166,   LRate:  35999.37244981,// Mean longitude (deg)
+    w0:  102.93768193,   wRate:  0.32327364,    // Longitude of perihelion (deg)
+    O0:  0.0,            ORate:  0.0            // Longitude of ascending node (deg)
+};
+
+
+// ============================================================
+// SECTION 2: SIMULATION STATE
+// Deterministic: given a time, Earth's position is fully determined
+// ============================================================
+
+const SimState = {
+    time: new Date(),              // Current simulation time (Date object)
+    timeScale: 1,                  // 1 = real-time (1 sec sim per 1 sec wall)
+    isPlaying: true,
+    lastFrameMs: performance.now(),
+
+    // Speed presets: label, scale (sim-seconds per wall-second)
+    speedPresets: [
+        { label: '1x',     scale: 1 },
+        { label: '1 min/s', scale: 60 },
+        { label: '1 hr/s',  scale: 3600 },
+        { label: '1 day/s', scale: 86400 },
+        { label: '1 wk/s',  scale: 604800 },
+        { label: '1 mo/s',  scale: 2592000 },
+    ],
+    speedIndex: 0,
+
+    setSpeed(index) {
+        this.speedIndex = index % this.speedPresets.length;
+        this.timeScale = this.speedPresets[this.speedIndex].scale;
+    },
+
+    cycleSpeed() {
+        this.setSpeed(this.speedIndex + 1);
+    },
+
+    // Advance simulation by wall-clock dt (seconds)
+    tick(dtWall) {
+        if (this.isPlaying) {
+            const advance = dtWall * this.timeScale * 1000; // ms to advance
+            this.time = new Date(this.time.getTime() + advance);
+        }
+    }
+};
+
+
+// ============================================================
+// SECTION 3: KEPLERIAN ORBITAL MECHANICS
+// Deterministic position from Keplerian elements + Kepler's equation
+// ============================================================
+
+function julianCenturiesFromJ2000(date) {
+    return (date.getTime() - J2000_EPOCH_MS) / (MS_PER_DAY * 36525);
+}
+
+// Solve Kepler's equation M = E - e*sin(E) via Newton-Raphson
+function solveKepler(M, e, tol) {
+    tol = tol || 1e-12;
+    // Normalize M to [-PI, PI]
+    let Mn = M % (2 * Math.PI);
+    if (Mn > Math.PI) Mn -= 2 * Math.PI;
+    if (Mn < -Math.PI) Mn += 2 * Math.PI;
+
+    let E = Mn; // Initial guess
+    for (let i = 0; i < 50; i++) {
+        const dE = (Mn - (E - e * Math.sin(E))) / (1 - e * Math.cos(E));
+        E += dE;
+        if (Math.abs(dE) < tol) break;
+    }
+    return E;
+}
+
+// Compute Earth's orbital elements at time T (Julian centuries from J2000)
+function earthElementsAt(T) {
+    return {
+        a:  EARTH_ELEMENTS.a0  + EARTH_ELEMENTS.aRate  * T,
+        e:  EARTH_ELEMENTS.e0  + EARTH_ELEMENTS.eRate  * T,
+        I: (EARTH_ELEMENTS.I0  + EARTH_ELEMENTS.IRate  * T) * DEG_TO_RAD,
+        L: (EARTH_ELEMENTS.L0  + EARTH_ELEMENTS.LRate  * T),           // degrees (unwrapped)
+        w: (EARTH_ELEMENTS.w0  + EARTH_ELEMENTS.wRate  * T),           // degrees
+        O: (EARTH_ELEMENTS.O0  + EARTH_ELEMENTS.ORate  * T) * DEG_TO_RAD
+    };
+}
+
+// Get Earth's heliocentric ecliptic position (AU) at a given Date
+function getEarthPosition(date) {
+    const T = julianCenturiesFromJ2000(date);
+    const el = earthElementsAt(T);
+
+    // Mean anomaly
+    const M = ((el.L - el.w) % 360 + 360) % 360 * DEG_TO_RAD;
+
+    // Eccentric anomaly
+    const E = solveKepler(M, el.e);
+
+    // True anomaly
+    const nu = 2 * Math.atan2(
+        Math.sqrt(1 + el.e) * Math.sin(E / 2),
+        Math.sqrt(1 - el.e) * Math.cos(E / 2)
+    );
+
+    // Heliocentric distance
+    const r = el.a * (1 - el.e * Math.cos(E));
+
+    // Position in perifocal frame (perihelion along x)
+    const xPeri = r * Math.cos(nu);
+    const yPeri = r * Math.sin(nu);
+
+    // Argument of perihelion
+    const omega = (el.w * DEG_TO_RAD) - el.O;
+
+    // Rotate perifocal -> ecliptic
+    const cosO = Math.cos(el.O), sinO = Math.sin(el.O);
+    const cosW = Math.cos(omega), sinW = Math.sin(omega);
+    const cosI = Math.cos(el.I),  sinI = Math.sin(el.I);
+
+    const xEcl = (cosW * cosO - sinW * sinO * cosI) * xPeri +
+                 (-sinW * cosO - cosW * sinO * cosI) * yPeri;
+    const yEcl = (cosW * sinO + sinW * cosO * cosI) * xPeri +
+                 (-sinW * sinO + cosW * cosO * cosI) * yPeri;
+    const zEcl = (sinW * sinI) * xPeri + (cosW * sinI) * yPeri;
+
+    return { x: xEcl, y: yEcl, z: zEcl, r, nu, E, M, a: el.a, e: el.e };
+}
+
+// Compute the 3D orbital path (array of THREE.Vector3 in scene coords)
+function computeOrbitPath(date, numPoints) {
+    numPoints = numPoints || 512;
+    const T = julianCenturiesFromJ2000(date);
+    const el = earthElementsAt(T);
+    const omega = (el.w * DEG_TO_RAD) - el.O;
+    const cosO = Math.cos(el.O), sinO = Math.sin(el.O);
+    const cosW = Math.cos(omega), sinW = Math.sin(omega);
+    const cosI = Math.cos(el.I),  sinI = Math.sin(el.I);
+
+    const points = [];
+    for (let i = 0; i <= numPoints; i++) {
+        const nu = (i / numPoints) * 2 * Math.PI;
+        const rr = el.a * (1 - el.e * el.e) / (1 + el.e * Math.cos(nu));
+        const xP = rr * Math.cos(nu);
+        const yP = rr * Math.sin(nu);
+
+        const xE = (cosW * cosO - sinW * sinO * cosI) * xP +
+                   (-sinW * cosO - cosW * sinO * cosI) * yP;
+        const yE = (cosW * sinO + sinW * cosO * cosI) * xP +
+                   (-sinW * sinO + cosW * cosO * cosI) * yP;
+        const zE = (sinW * sinI) * xP + (cosW * sinI) * yP;
+
+        points.push(eclipticToScene(xE, yE, zE));
+    }
+    return points;
+}
+
+
+// ============================================================
+// SECTION 4: COORDINATE TRANSFORMS
+// Ecliptic <-> Equatorial, formatting utilities
+// ============================================================
+
+// Ecliptic (AU) -> Three.js scene coordinates
+// Mapping: ecliptic X -> scene X, ecliptic Z -> scene Y, ecliptic Y -> scene -Z
+// This puts the ecliptic plane in the XZ plane with Y up (north ecliptic pole)
+function eclipticToScene(xEcl, yEcl, zEcl) {
+    return new THREE.Vector3(
+        xEcl * AU_TO_SCENE,
+        zEcl * AU_TO_SCENE,
+       -yEcl * AU_TO_SCENE
+    );
+}
+
+// Sun's RA/Dec as seen from Earth (geocentric apparent position)
+function getSunRADec(date) {
+    const pos = getEarthPosition(date);
+    const T = julianCenturiesFromJ2000(date);
+    const epsilon = (OBLIQUITY_J2000 - 0.0130042 * T) * DEG_TO_RAD;
+
+    // Sun's ecliptic longitude & latitude (opposite of Earth's heliocentric position)
+    const sunLon = Math.atan2(-pos.y, -pos.x);
+    const sunLat = Math.atan2(-pos.z, Math.sqrt(pos.x * pos.x + pos.y * pos.y));
+
+    const sinL = Math.sin(sunLon), cosL = Math.cos(sunLon);
+    const sinB = Math.sin(sunLat), cosB = Math.cos(sunLat);
+    const cosE = Math.cos(epsilon), sinE = Math.sin(epsilon);
+
+    const ra  = Math.atan2(sinL * cosE - (sinB / cosB) * sinE, cosL);
+    const dec = Math.asin(sinB * cosE + cosB * sinE * sinL);
+
+    return {
+        ra:  ((ra * RAD_TO_DEG) % 360 + 360) % 360,
+        dec: dec * RAD_TO_DEG,
+        distAU: pos.r
+    };
+}
+
+// Format RA (degrees) -> "HHh MMm SSs"
+function formatRA(raDeg) {
+    const totalHours = raDeg / 15;
+    const h = Math.floor(totalHours);
+    const m = Math.floor((totalHours - h) * 60);
+    const s = ((totalHours - h) * 60 - m) * 60;
+    return h.toString().padStart(2, '0') + 'h ' +
+           m.toString().padStart(2, '0') + 'm ' +
+           s.toFixed(1).padStart(4, '0') + 's';
+}
+
+// Format Dec (degrees) -> "+DD° MM' SS""
+function formatDec(decDeg) {
+    const sign = decDeg >= 0 ? '+' : '-';
+    const abs = Math.abs(decDeg);
+    const d = Math.floor(abs);
+    const m = Math.floor((abs - d) * 60);
+    const s = ((abs - d) * 60 - m) * 60;
+    return sign + d.toString().padStart(2, '0') + '\u00B0 ' +
+           m.toString().padStart(2, '0') + "' " +
+           s.toFixed(0).padStart(2, '0') + '"';
+}
+
+// Day of year (1-366)
+function dayOfYear(date) {
+    const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.floor((date.getTime() - start.getTime()) / MS_PER_DAY) + 1;
+}
+
+
+// ============================================================
+// SECTION 5: THREE.JS SCENE SETUP
+// Sun, Earth, orbit path, stars, lighting
+// ============================================================
+
+let scene, camera, renderer;
+let sunMesh, sunGlow1, sunGlow2, sunLight;
+let earthPivot, earthMesh, earthAtmosphere;
+let orbitLine;
+let perihelionMarker, aphelionMarker;
+
+function initScene() {
+    scene = new THREE.Scene();
+
+    // Camera
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 20000);
+    CamController.init(camera);
+
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 1);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    createStars();
+    createSun();
+    createEarth();
+    createOrbitPath();
+    createEclipticGrid();
+
+    // Ambient light so the dark side of Earth isn't pure black
+    scene.add(new THREE.AmbientLight(0x1a2a4a, 0.4));
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+}
+
+function createStars() {
+    const geo = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    const starCount = 6000;
+
+    for (let i = 0; i < starCount; i++) {
+        // Distribute on a large sphere
+        const theta = Math.random() * 2 * Math.PI;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 5000 + Math.random() * 3000;
+        positions.push(
+            r * Math.sin(phi) * Math.cos(theta),
+            r * Math.sin(phi) * Math.sin(theta),
+            r * Math.cos(phi)
+        );
+        // Slight color variation (white to warm to cool)
+        const temp = Math.random();
+        if (temp < 0.1) {
+            colors.push(1.0, 0.8, 0.6); // warm
+        } else if (temp < 0.2) {
+            colors.push(0.7, 0.85, 1.0); // cool
+        } else {
+            colors.push(1.0, 1.0, 1.0); // white
+        }
+    }
+
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const mat = new THREE.PointsMaterial({
+        size: 1.2,
+        vertexColors: true,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.9
+    });
+
+    scene.add(new THREE.Points(geo, mat));
+}
+
+function createSun() {
+    // Core sphere
+    const sunGeo = new THREE.SphereGeometry(8, 64, 64);
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+    sunMesh = new THREE.Mesh(sunGeo, sunMat);
+    scene.add(sunMesh);
+
+    // Inner glow
+    const glow1Geo = new THREE.SphereGeometry(10, 32, 32);
+    const glow1Mat = new THREE.MeshBasicMaterial({
+        color: 0xffaa00, transparent: true, opacity: 0.25
+    });
+    sunGlow1 = new THREE.Mesh(glow1Geo, glow1Mat);
+    sunMesh.add(sunGlow1);
+
+    // Outer glow
+    const glow2Geo = new THREE.SphereGeometry(14, 32, 32);
+    const glow2Mat = new THREE.MeshBasicMaterial({
+        color: 0xff6600, transparent: true, opacity: 0.1
+    });
+    sunGlow2 = new THREE.Mesh(glow2Geo, glow2Mat);
+    sunMesh.add(sunGlow2);
+
+    // Point light
+    sunLight = new THREE.PointLight(0xfff5e0, 1.8, 2000, 1);
+    sunLight.position.set(0, 0, 0);
+    scene.add(sunLight);
+}
+
+function createEarth() {
+    // Pivot carries the axial tilt (constant in ecliptic frame)
+    earthPivot = new THREE.Object3D();
+    // Tilt the rotation axis: 23.44° from ecliptic normal,
+    // toward ecliptic longitude ~90° (summer solstice direction)
+    // In scene coords: rotate around X by -obliquity
+    earthPivot.rotation.x = -OBLIQUITY_J2000 * DEG_TO_RAD;
+    scene.add(earthPivot);
+
+    // Earth sphere
+    const earthGeo = new THREE.SphereGeometry(2.5, 48, 48);
+    const earthMat = new THREE.MeshPhongMaterial({
+        color: 0x2e6fba,
+        emissive: 0x0a1a3a,
+        emissiveIntensity: 0.15,
+        shininess: 25,
+        specular: 0x4488bb
+    });
+    earthMesh = new THREE.Mesh(earthGeo, earthMat);
+    earthPivot.add(earthMesh);
+
+    // Atmosphere glow
+    const atmoGeo = new THREE.SphereGeometry(2.9, 32, 32);
+    const atmoMat = new THREE.MeshBasicMaterial({
+        color: 0x6eb5ff,
+        transparent: true,
+        opacity: 0.12
+    });
+    earthAtmosphere = new THREE.Mesh(atmoGeo, atmoMat);
+    earthPivot.add(earthAtmosphere);
+}
+
+function createOrbitPath() {
+    const points = computeOrbitPath(SimState.time);
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({
+        color: 0x2a5a8a,
+        transparent: true,
+        opacity: 0.5
+    });
+    orbitLine = new THREE.Line(geo, mat);
+    scene.add(orbitLine);
+
+    // Perihelion marker (true anomaly = 0)
+    const periPos = points[0];
+    perihelionMarker = createOrbitalMarker(periPos, 0x6eb5ff, 'P');
+    scene.add(perihelionMarker);
+
+    // Aphelion marker (true anomaly = PI, roughly halfway)
+    const aphIndex = Math.floor(points.length / 2);
+    const aphPos = points[aphIndex];
+    aphelionMarker = createOrbitalMarker(aphPos, 0xfbbf24, 'A');
+    scene.add(aphelionMarker);
+}
+
+function createOrbitalMarker(position, color, _label) {
+    const geo = new THREE.SphereGeometry(0.8, 16, 16);
+    const mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.7 });
+    const marker = new THREE.Mesh(geo, mat);
+    marker.position.copy(position);
+    return marker;
+}
+
+function createEclipticGrid() {
+    // Subtle reference ring at 1 AU
+    const ringGeo = new THREE.RingGeometry(AU_TO_SCENE - 0.5, AU_TO_SCENE + 0.5, 128);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x1a3050,
+        transparent: true,
+        opacity: 0.15,
+        side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    scene.add(ring);
+
+    // Vernal equinox direction indicator (thin line along +X)
+    const vGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(20, 0, 0),
+        new THREE.Vector3(AU_TO_SCENE * 1.15, 0, 0)
+    ]);
+    const vMat = new THREE.LineBasicMaterial({
+        color: 0x3d5a80,
+        transparent: true,
+        opacity: 0.2
+    });
+    scene.add(new THREE.Line(vGeo, vMat));
+}
+
+
+// ============================================================
+// SECTION 6: CAMERA SYSTEM — GOD MODE MVP
+// Spherical orbit controls with quaternion scaffolding
+// Future: free-fly (WASD), follow-target, smooth slerp transitions
+// ============================================================
+
+const CamController = {
+    camera: null,
+    target: null,             // THREE.Vector3 — orbit target (look-at point)
+    panOffset: null,
+
+    // Spherical coordinates (MVP orbital mode)
+    radius: 500,
+    phi: 0.45,                // Elevation from XZ plane (radians)
+    theta: 0.3,               // Azimuthal angle (radians)
+
+    // Input tracking
+    isDragging: false,
+    isRightDragging: false,
+    lastMouse: { x: 0, y: 0 },
+
+    // Damping / momentum
+    velocityTheta: 0,
+    velocityPhi: 0,
+    damping: 0.92,
+
+    // Mode: 'orbit' | 'free' | 'follow'
+    mode: 'orbit',
+
+    // ------ Quaternion Scaffolding ------
+    // For future free-fly and smooth transition modes.
+    // The orientation quaternion represents the camera's
+    // absolute rotation in world space.
+    //
+    // orientation: new THREE.Quaternion(),
+    // targetOrientation: new THREE.Quaternion(),
+    // lerpFactor: 0.05,
+    //
+    // To transition between modes smoothly:
+    //   1. Capture current camera quaternion: camera.quaternion.clone()
+    //   2. Compute target quaternion for new mode
+    //   3. Slerp between them each frame until converged
+    //
+    // Free-fly mode would use:
+    //   - WASD for translation along camera-local axes
+    //   - Mouse delta to rotate quaternion via axis-angle
+    //   - Roll with Q/E keys
+    //
+    // Follow mode would use:
+    //   - Compute look-at quaternion toward target each frame
+    //   - Slerp from current orientation
+    //   - Maintain user-defined offset distance
+    // ------ End Scaffolding ------
+
+    init(cam) {
+        this.camera = cam;
+        this.target = new THREE.Vector3(0, 0, 0);
+        this.panOffset = new THREE.Vector3(0, 0, 0);
+        this.updatePosition();
+        this.attachEvents();
+    },
+
+    updatePosition() {
+        // Clamp phi to avoid gimbal issues
+        this.phi = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, this.phi));
+        this.radius = Math.max(30, Math.min(3000, this.radius));
+
+        const x = this.radius * Math.cos(this.phi) * Math.sin(this.theta);
+        const y = this.radius * Math.sin(this.phi);
+        const z = this.radius * Math.cos(this.phi) * Math.cos(this.theta);
+
+        this.camera.position.set(
+            x + this.target.x + this.panOffset.x,
+            y + this.target.y + this.panOffset.y,
+            z + this.target.z + this.panOffset.z
+        );
+        this.camera.lookAt(
+            this.target.x + this.panOffset.x,
+            this.target.y + this.panOffset.y,
+            this.target.z + this.panOffset.z
+        );
+    },
+
+    applyDamping() {
+        if (!this.isDragging) {
+            this.theta += this.velocityTheta;
+            this.phi += this.velocityPhi;
+            this.velocityTheta *= this.damping;
+            this.velocityPhi *= this.damping;
+            if (Math.abs(this.velocityTheta) > 0.0001 || Math.abs(this.velocityPhi) > 0.0001) {
+                this.updatePosition();
+            }
+        }
+    },
+
+    attachEvents() {
+        const el = renderer.domElement;
+
+        el.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { this.isDragging = true; this.velocityTheta = 0; this.velocityPhi = 0; }
+            if (e.button === 2) this.isRightDragging = true;
+            this.lastMouse.x = e.clientX;
+            this.lastMouse.y = e.clientY;
+        });
+
+        const onUp = (e) => {
+            if (e.button === 0) this.isDragging = false;
+            if (e.button === 2) this.isRightDragging = false;
+        };
+        el.addEventListener('mouseup', onUp);
+        el.addEventListener('mouseleave', () => { this.isDragging = false; this.isRightDragging = false; });
+
+        el.addEventListener('mousemove', (e) => {
+            const dx = e.clientX - this.lastMouse.x;
+            const dy = e.clientY - this.lastMouse.y;
+            this.lastMouse.x = e.clientX;
+            this.lastMouse.y = e.clientY;
+
+            if (this.isDragging) {
+                const speed = 0.004;
+                this.theta -= dx * speed;
+                this.phi += dy * speed;
+                this.velocityTheta = -dx * speed * 0.3;
+                this.velocityPhi = dy * speed * 0.3;
+                this.updatePosition();
+            }
+            if (this.isRightDragging) {
+                // Pan in the camera-local XY plane
+                const panSpeed = this.radius * 0.001;
+                const right = new THREE.Vector3();
+                const up = new THREE.Vector3();
+                this.camera.getWorldDirection(new THREE.Vector3());
+                right.setFromMatrixColumn(this.camera.matrixWorld, 0);
+                up.setFromMatrixColumn(this.camera.matrixWorld, 1);
+                this.panOffset.addScaledVector(right, -dx * panSpeed);
+                this.panOffset.addScaledVector(up, dy * panSpeed);
+                this.updatePosition();
+            }
+        });
+
+        el.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            this.radius *= 1 + e.deltaY * 0.001;
+            this.updatePosition();
+        }, { passive: false });
+
+        el.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Touch: single-finger orbit, two-finger zoom
+        let lastTouch = null;
+        let lastPinchDist = 0;
+
+        el.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else if (e.touches.length === 2) {
+                lastPinchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        });
+
+        el.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1 && lastTouch) {
+                const dx = e.touches[0].clientX - lastTouch.x;
+                const dy = e.touches[0].clientY - lastTouch.y;
+                this.theta -= dx * 0.005;
+                this.phi += dy * 0.005;
+                this.updatePosition();
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else if (e.touches.length === 2) {
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                this.radius *= 1 + (lastPinchDist - dist) * 0.005;
+                this.updatePosition();
+                lastPinchDist = dist;
+            }
+        }, { passive: false });
+
+        el.addEventListener('touchend', () => { lastTouch = null; });
+    }
+};
+
+
+// ============================================================
+// SECTION 7: INFO PANEL — Draggable & Minimizable
+// ============================================================
+
+const InfoPanel = {
+    el: null,
+    header: null,
+    isDragging: false,
+    isMinimized: false,
+    offset: { x: 0, y: 0 },
+
+    init() {
+        this.el = document.getElementById('info-panel');
+        this.header = document.getElementById('panel-header');
+        const toggle = document.getElementById('panel-toggle');
+
+        // Minimize toggle
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.isMinimized = !this.isMinimized;
+            this.el.classList.toggle('minimized', this.isMinimized);
+            toggle.innerHTML = this.isMinimized ? '&#43;' : '&#8722;';
+        });
+
+        // Drag
+        this.header.addEventListener('mousedown', (e) => {
+            if (e.target === toggle) return;
+            this.isDragging = true;
+            const rect = this.el.getBoundingClientRect();
+            this.offset.x = e.clientX - rect.left;
+            this.offset.y = e.clientY - rect.top;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!this.isDragging) return;
+            let x = e.clientX - this.offset.x;
+            let y = e.clientY - this.offset.y;
+            // Constrain to viewport
+            x = Math.max(0, Math.min(window.innerWidth - 100, x));
+            y = Math.max(0, Math.min(window.innerHeight - 40, y));
+            this.el.style.left = x + 'px';
+            this.el.style.top = y + 'px';
+        });
+
+        document.addEventListener('mouseup', () => { this.isDragging = false; });
+    },
+
+    update(date) {
+        const sun = getSunRADec(date);
+
+        document.getElementById('val-ra').textContent = formatRA(sun.ra);
+        document.getElementById('val-dec').textContent = formatDec(sun.dec);
+        document.getElementById('val-dist').textContent =
+            sun.distAU.toFixed(6) + ' AU';
+        document.getElementById('val-time').textContent =
+            date.getUTCHours().toString().padStart(2, '0') + ':' +
+            date.getUTCMinutes().toString().padStart(2, '0') + ':' +
+            date.getUTCSeconds().toString().padStart(2, '0');
+        document.getElementById('val-doy').textContent = dayOfYear(date);
+        document.getElementById('val-year').textContent = date.getUTCFullYear();
+    }
+};
+
+
+// ============================================================
+// SECTION 8: TIMELINE CONTROLS
+// Video-player style scrubber, play/pause, speed, step
+// ============================================================
+
+const Timeline = {
+    scrubbing: false,
+    yearStart: null,
+    yearEnd: null,
+
+    init() {
+        this.computeYearBounds();
+        this.attachEvents();
+        this.updateDisplay();
+    },
+
+    computeYearBounds() {
+        const y = SimState.time.getUTCFullYear();
+        this.yearStart = new Date(Date.UTC(y, 0, 1));
+        this.yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+    },
+
+    getScrubberFraction() {
+        const y = SimState.time.getUTCFullYear();
+        const ys = new Date(Date.UTC(y, 0, 1)).getTime();
+        const ye = new Date(Date.UTC(y + 1, 0, 1)).getTime();
+        return Math.max(0, Math.min(1, (SimState.time.getTime() - ys) / (ye - ys)));
+    },
+
+    setTimeFromFraction(frac) {
+        const y = SimState.time.getUTCFullYear();
+        const ys = new Date(Date.UTC(y, 0, 1)).getTime();
+        const ye = new Date(Date.UTC(y + 1, 0, 1)).getTime();
+        SimState.time = new Date(ys + frac * (ye - ys));
+    },
+
+    updateDisplay() {
+        // Scrubber position
+        const frac = this.getScrubberFraction();
+        document.getElementById('scrubber-progress').style.width = (frac * 100) + '%';
+
+        // Date string
+        const d = SimState.time;
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const dateStr =
+            d.getUTCDate().toString().padStart(2, '0') + ' ' +
+            months[d.getUTCMonth()] + ' ' +
+            d.getUTCFullYear() + '  ' +
+            d.getUTCHours().toString().padStart(2, '0') + ':' +
+            d.getUTCMinutes().toString().padStart(2, '0') + ':' +
+            d.getUTCSeconds().toString().padStart(2, '0') + ' UTC';
+        document.getElementById('date-display').textContent = dateStr;
+
+        // Speed label
+        document.getElementById('speed-display').textContent =
+            SimState.speedPresets[SimState.speedIndex].label;
+
+        // Play button state
+        document.getElementById('btn-play').innerHTML = SimState.isPlaying ? '&#10074;&#10074;' : '&#9654;';
+        document.getElementById('btn-play').classList.toggle('active', SimState.isPlaying);
+    },
+
+    attachEvents() {
+        // Play / Pause
+        document.getElementById('btn-play').addEventListener('click', () => {
+            SimState.isPlaying = !SimState.isPlaying;
+            this.updateDisplay();
+        });
+
+        // Step buttons
+        document.getElementById('btn-step-back-day').addEventListener('click', () => {
+            SimState.time = new Date(SimState.time.getTime() - MS_PER_DAY);
+        });
+        document.getElementById('btn-step-back').addEventListener('click', () => {
+            SimState.time = new Date(SimState.time.getTime() - 3600000);
+        });
+        document.getElementById('btn-step-fwd').addEventListener('click', () => {
+            SimState.time = new Date(SimState.time.getTime() + 3600000);
+        });
+        document.getElementById('btn-step-fwd-day').addEventListener('click', () => {
+            SimState.time = new Date(SimState.time.getTime() + MS_PER_DAY);
+        });
+
+        // Speed cycle
+        document.getElementById('speed-display').addEventListener('click', () => {
+            SimState.cycleSpeed();
+            this.updateDisplay();
+        });
+
+        // Scrubber drag
+        const container = document.getElementById('scrubber-container');
+        const setFromEvent = (e) => {
+            const rect = container.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            this.setTimeFromFraction(frac);
+        };
+
+        container.addEventListener('mousedown', (e) => { this.scrubbing = true; setFromEvent(e); });
+        document.addEventListener('mousemove', (e) => { if (this.scrubbing) setFromEvent(e); });
+        document.addEventListener('mouseup', () => { this.scrubbing = false; });
+
+        container.addEventListener('touchstart', (e) => { this.scrubbing = true; setFromEvent(e); });
+        document.addEventListener('touchmove', (e) => { if (this.scrubbing) setFromEvent(e); });
+        document.addEventListener('touchend', () => { this.scrubbing = false; });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') { e.preventDefault(); SimState.isPlaying = !SimState.isPlaying; }
+            if (e.code === 'ArrowRight') { SimState.time = new Date(SimState.time.getTime() + MS_PER_DAY); }
+            if (e.code === 'ArrowLeft') { SimState.time = new Date(SimState.time.getTime() - MS_PER_DAY); }
+            if (e.code === 'ArrowUp') { SimState.cycleSpeed(); }
+            if (e.code === 'ArrowDown') {
+                SimState.speedIndex = (SimState.speedIndex - 1 + SimState.speedPresets.length) % SimState.speedPresets.length;
+                SimState.timeScale = SimState.speedPresets[SimState.speedIndex].scale;
+            }
+            if (e.code === 'KeyR') { SimState.time = new Date(); } // Reset to now
+        });
+    }
+};
+
+
+// ============================================================
+// SECTION 9: ANIMATION LOOP
+// Deterministic: Earth position is purely a function of sim time
+// ============================================================
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    const now = performance.now();
+    const dtWall = Math.min((now - SimState.lastFrameMs) / 1000, 0.1); // cap at 100ms
+    SimState.lastFrameMs = now;
+
+    // Advance simulation time
+    SimState.tick(dtWall);
+
+    // Compute Earth's heliocentric position
+    const earthEcl = getEarthPosition(SimState.time);
+    const earthScene = eclipticToScene(earthEcl.x, earthEcl.y, earthEcl.z);
+
+    // Update Earth position (pivot carries the tilt, we position it)
+    earthPivot.position.copy(earthScene);
+
+    // Slow visual rotation for Earth (sidereal day ~ 23h56m)
+    // At 1x speed this is imperceptible; at higher speeds it looks nice
+    const siderealRate = (2 * Math.PI) / (23.9345 * 3600); // rad/s
+    earthMesh.rotation.y += siderealRate * dtWall * SimState.timeScale;
+
+    // Gentle sun pulse
+    const pulse = 1 + 0.02 * Math.sin(now * 0.002);
+    sunGlow1.scale.setScalar(pulse);
+    sunGlow2.scale.setScalar(pulse * 0.98);
+
+    // Camera damping
+    CamController.applyDamping();
+
+    // Update UI (throttled to ~20fps for DOM updates)
+    if (now - (animate._lastUI || 0) > 50) {
+        animate._lastUI = now;
+        InfoPanel.update(SimState.time);
+        Timeline.updateDisplay();
+    }
+
+    renderer.render(scene, camera);
+}
+animate._lastUI = 0;
+
+
+// ============================================================
+// SECTION 10: NASA API BRIDGE (Scaffolding)
+// Future enhancement: JPL Horizons API for high-precision ephemerides
+// Endpoint: https://ssd.jpl.nasa.gov/api/horizons.api
+// ============================================================
+
+const NASABridge = {
+    enabled: false,
+    apiBase: 'https://ssd.jpl.nasa.gov/api/horizons.api',
+    cache: new Map(),
+
+    // Fetch ephemeris data from JPL Horizons
+    // body codes: '399' = Earth, '10' = Sun, '499' = Mars, etc.
+    // Returns: Array of { epoch, x, y, z, vx, vy, vz } in ecliptic J2000
+    //
+    // async fetchEphemeris(bodyCode, startDate, endDate, stepSize) {
+    //     const params = new URLSearchParams({
+    //         format: 'json',
+    //         COMMAND: `'${bodyCode}'`,
+    //         EPHEM_TYPE: 'VECTORS',
+    //         CENTER: "'500@10'",       // Sun-centered
+    //         REF_PLANE: 'ECLIPTIC',
+    //         REF_SYSTEM: 'J2000',
+    //         START_TIME: `'${startDate}'`,
+    //         STOP_TIME: `'${endDate}'`,
+    //         STEP_SIZE: `'${stepSize}'`,
+    //         VEC_TABLE: '2',           // Position + velocity
+    //         OUT_UNITS: "'AU-D'"       // AU and days
+    //     });
+    //     const resp = await fetch(`${this.apiBase}?${params}`);
+    //     const data = await resp.json();
+    //     return this.parseHorizonsResponse(data);
+    // },
+    //
+    // parseHorizonsResponse(data) {
+    //     // TODO: Parse the Horizons JSON response format
+    //     // Extract state vectors from the result block
+    //     return [];
+    // },
+    //
+    // // Get position with fallback to Keplerian computation
+    // async getPosition(bodyCode, date) {
+    //     if (!this.enabled) return null;
+    //     const key = `${bodyCode}_${date.toISOString().slice(0,10)}`;
+    //     if (this.cache.has(key)) return this.cache.get(key);
+    //     // Fetch and cache
+    //     return null;
+    // }
+};
+
+
+// ============================================================
+// SECTION 11: PRECESSION PREDICTION ENGINE (Scaffolding)
+// Full precession model for long-timescale accuracy
+// ============================================================
+
+// The linear rates in EARTH_ELEMENTS capture first-order secular
+// variations. For a full precession prediction engine, implement:
+//
+// 1. AXIAL PRECESSION (Lunisolar + Planetary)
+//    - Period: ~25,772 years
+//    - The Earth's rotation axis traces a cone
+//    - Use IAU 2006 precession model (Capitaine et al.)
+//    - Affects: equatorial coordinates, equinox direction
+//
+// 2. APSIDAL PRECESSION (Perihelion advance)
+//    - Period: ~112,000 years
+//    - Already partially captured by wRate in EARTH_ELEMENTS
+//    - For higher accuracy: numerical integration with planetary perturbations
+//
+// 3. ORBITAL INCLINATION OSCILLATION
+//    - Period: ~70,000 years
+//    - Small amplitude (~2.4°) relative to invariable plane
+//
+// 4. ECCENTRICITY VARIATION (Milankovitch)
+//    - Period: ~413,000 years (dominant) + ~100,000 years
+//    - Range: 0.000055 to 0.0679
+//    - Requires secular perturbation theory
+//
+// Implementation path:
+//   a) Replace linear element rates with polynomial series (Bretagnon & Francou)
+//   b) Add planetary perturbation corrections (VSOP87)
+//   c) Or integrate with NASA SPICE kernels for full accuracy
+//
+// const PrecessionEngine = {
+//     // IAU 2006 precession parameters
+//     // psiA, omegaA, chiA as functions of T
+//     computePrecessionMatrix(T) { /* returns 3x3 rotation matrix */ },
+//
+//     // Correct ecliptic coordinates for precession
+//     precessEcliptic(pos, fromEpoch, toEpoch) { /* ... */ },
+//
+//     // Compute obliquity at arbitrary epoch
+//     obliquityAt(T) {
+//         // Polynomial fit (arcseconds from J2000 value)
+//         // return 23.439291 - 0.0130042*T - 1.64e-7*T^2 + 5.04e-7*T^3;
+//     }
+// };
+
+
+// ============================================================
+// SECTION 12: INITIALIZATION
+// ============================================================
+
+function init() {
+    initScene();
+    InfoPanel.init();
+    Timeline.init();
+
+    // Fade out loading screen
+    const loading = document.getElementById('loading');
+    loading.classList.add('fade-out');
+    setTimeout(() => { loading.style.display = 'none'; }, 600);
+
+    // Start animation loop
+    animate();
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
