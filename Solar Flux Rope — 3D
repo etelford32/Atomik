@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Solar Flux Rope — 3D</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#000; overflow:hidden; }
+canvas { display:block; }
+#info {
+  position:fixed; top:16px; left:16px;
+  color:#ff6622; font-family:'Courier New',monospace;
+  font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+  pointer-events:none; z-index:10;
+}
+#info h1 { font-size:12px; color:#ffaa44; margin-bottom:8px; font-weight:normal; letter-spacing:0.2em; }
+#info div { color:#aa3300; margin-bottom:3px; }
+#info span { color:#ff8833; }
+</style>
+</head>
+<body>
+<div id="info">
+  <h1>Solar Flux Rope / Nanoswitchback</h1>
+  <div>Nanoflares: <span id="s-sb">0</span></div>
+  <div>Prominences: <span id="s-pr">0</span></div>
+  <div>Spots Active: <span id="s-sp">0</span></div>
+  <div>Spots Decaying: <span id="s-sd">0</span></div>
+  <div>T: <span id="s-t">0.00</span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── SCENE SETUP ────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 2000);
+camera.position.set(0, 40, 220);
+camera.lookAt(0, 0, 0);
+
+window.addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ─── ORBIT CONTROLS (manual) ────────────────────────────────────────────────
+let isDragging = false, prevX = 0, prevY = 0;
+let rotY = 0, rotX = 0.15;
+const pivot = new THREE.Group();
+scene.add(pivot);
+
+renderer.domElement.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+renderer.domElement.addEventListener('mouseup', () => isDragging = false);
+renderer.domElement.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  rotY += (e.clientX - prevX) * 0.005;
+  rotX += (e.clientY - prevY) * 0.003;
+  rotX = Math.max(-1.2, Math.min(1.2, rotX));
+  prevX = e.clientX; prevY = e.clientY;
+});
+renderer.domElement.addEventListener('wheel', e => {
+  camera.position.z = Math.max(80, Math.min(500, camera.position.z + e.deltaY * 0.1));
+});
+
+// ─── CONSTANTS ──────────────────────────────────────────────────────────────
+const SUN_R    = 80;
+const MAG_R    = 148;
+const DEG      = Math.PI / 180;
+const MAX_SPOTS = 12;
+
+// ─── SPOT UNIFORM ARRAYS (declared early so sunMat can reference them) ───────
+const uSpotPos    = new Float32Array(MAX_SPOTS * 3);
+const uSpotRadius = new Float32Array(MAX_SPOTS);
+const uSpotEnergy = new Float32Array(MAX_SPOTS);
+const uSpotPol    = new Float32Array(MAX_SPOTS);
+const uSpotFlash  = new Float32Array(MAX_SPOTS);
+
+// ─── SHADERS ────────────────────────────────────────────────────────────────
+const sunVert = `
+varying vec3 vNormal;
+varying vec3 vPos;
+varying vec3 vViewNormal;
+uniform float uTime;
+void main(){
+  vNormal    = normalize(normalMatrix * normal);
+  vViewNormal= normalize((modelViewMatrix * vec4(normal,0.0)).xyz);
+  vPos       = normalize(position); // unit direction on sphere
+  float n = sin(position.x*0.3+uTime*0.4)*sin(position.y*0.3+uTime*0.3)*sin(position.z*0.3+uTime*0.35);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position + normal*n*0.4, 1.0);
+}`;
+
+const sunFrag = `
+varying vec3 vNormal;
+varying vec3 vPos;    // normalized surface direction
+varying vec3 vViewNormal;
+uniform float uTime;
+uniform vec3  uSpotPos[12];
+uniform float uSpotRadius[12];
+uniform float uSpotEnergy[12];
+uniform float uSpotPol[12];
+uniform float uSpotFlash[12];
+
+float hash(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }
+float noise(vec3 p){
+  vec3 i=floor(p); vec3 f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
+}
+float fbm(vec3 p){
+  float v=0.0,a=0.5;
+  for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.1+vec3(1.7,9.2,3.1);a*=0.5;}
+  return v;
+}
+
+// Radial penumbral filament pattern around a spot center
+float penumbraFilaments(vec3 dir, vec3 center, float angle, float time, float pol){
+  // Project onto tangent plane around spot center
+  vec3 up  = abs(center.y) < 0.99 ? vec3(0.0,1.0,0.0) : vec3(1.0,0.0,0.0);
+  vec3 t1  = normalize(cross(center, up));
+  vec3 t2  = normalize(cross(center, t1));
+  vec3 off = dir - center * dot(dir, center);
+  float u  = dot(off, t1);
+  float v  = dot(off, t2);
+  // Radial angle for filament stripes
+  float phi = atan(v, u);
+  // Evershed flow: animate angle outward from center, speed varies by polarity
+  float flow = pol > 0.0 ? time * 0.3 : -time * 0.25;
+  float stripes = sin(phi * 12.0 + flow) * 0.5 + 0.5;
+  // Modulate by radial distance — filaments only in penumbra zone
+  float r = length(off);
+  float inPenumbra = smoothstep(angle*0.5, angle*0.6, r) * smoothstep(angle*1.05, angle*0.85, r);
+  return stripes * inPenumbra;
+}
+
+// Light bridge: static bright streak across umbra when energy is high (pre-flare signal)
+float lightBridge(vec3 dir, vec3 center, float angle, float energy){
+  if(energy < 0.65) return 0.0;
+  vec3 up = abs(center.y)<0.99 ? vec3(0,1,0) : vec3(1,0,0);
+  vec3 t1 = normalize(cross(center, up));
+  vec3 off = dir - center*dot(dir,center);
+  float u  = dot(off, t1);
+  float r  = length(off);
+  float bridge = smoothstep(0.012, 0.003, abs(u)) * smoothstep(angle*0.5, angle*0.05, r);
+  return bridge * (energy - 0.65) * 1.2;
+}
+
+void main(){
+  vec3 n   = normalize(vPos);
+  float limb = clamp(dot(normalize(vViewNormal), vec3(0.0,0.0,1.0)), 0.0, 1.0);
+
+  // ── Base photosphere ──
+  float gran  = fbm(vPos * 80.0 * 0.08 + uTime * 0.05);
+  float gran2 = fbm(vPos * 80.0 * 0.20 + uTime * 0.08 + 5.3);
+
+  vec3 coreCol = vec3(1.0, 0.97, 0.85);
+  vec3 midCol  = vec3(1.0, 0.65, 0.10);
+  vec3 limbCol = vec3(0.8, 0.18, 0.01);
+
+  float t1 = smoothstep(0.0,0.5,limb), t2 = smoothstep(0.5,1.0,limb);
+  vec3 col = mix(mix(limbCol,midCol,t1), coreCol, t2*0.8);
+  col = mix(col*0.75, col*1.25, gran);
+  col = mix(col, col*1.1, gran2*0.3);
+
+  // ── Sunspot loop ──
+  float totalDark   = 0.0;
+  float totalPolTint= 0.0;
+  float totalFlash  = 0.0;
+  float totalBridge = 0.0;
+  float totalFilament = 0.0;
+
+  for(int i = 0; i < 12; i++){
+    float R = uSpotRadius[i];
+    if(R < 0.001) continue;
+
+    vec3  sc  = uSpotPos[i];           // unit direction to spot center
+    float dot_ = dot(n, sc);
+    float dist = 1.0 - dot_;           // 0 at center, ~2 at opposite pole
+    float pol  = uSpotPol[i];
+    float E    = uSpotEnergy[i];
+    float flash= uSpotFlash[i];
+
+    // Umbra (inner dark core)
+    float umbraR  = R * 0.45;
+    float umbraMask = smoothstep(umbraR * 1.1, umbraR * 0.7, dist);
+
+    // Penumbra (outer fuzzy ring)
+    float penumbraR = R;
+    float penumbraMask = smoothstep(penumbraR * 1.15, penumbraR * 0.5, dist)
+                       * (1.0 - umbraMask);
+
+    // Umbra darkness — deeper when energy is high (stronger field)
+    float umbraDark = umbraMask * (0.75 + E * 0.2);
+
+    // Penumbra darkness — partial, modulated by filaments
+    float filament  = penumbraFilaments(n, sc, R, uTime, pol);
+    float penumbraDark = penumbraMask * (0.35 + filament * 0.25);
+
+    totalDark    += umbraDark + penumbraDark;
+    totalFilament+= filament * penumbraMask * 0.3;
+
+    // Polarity tint in umbra — blue for +, red/magenta for -
+    float tintStr = umbraMask * 0.4;
+    totalPolTint += pol * tintStr;
+
+    // Light bridge
+    totalBridge  += lightBridge(n, sc, R, E);
+
+    // Flare flash — disabled, was causing center flash
+    // totalFlash += flash * umbraMask * 2.0;
+  }
+
+  // Apply darkening
+  float dark = clamp(totalDark, 0.0, 1.0);
+  // Umbra base color — very dark reddish-brown
+  vec3 umbraCol = vec3(0.12, 0.04, 0.02);
+  col = mix(col, umbraCol, dark);
+
+  // Polarity tint overlay
+  if(totalPolTint > 0.0) col = mix(col, col + vec3(0.0, 0.05, 0.15), totalPolTint);
+  if(totalPolTint < 0.0) col = mix(col, col + vec3(0.15, 0.0, 0.05), -totalPolTint);
+
+  // Filament brightening in penumbra (Evershed streaks are slightly hotter)
+  col += vec3(0.08, 0.04, 0.0) * totalFilament;
+
+  // Light bridge bright streak
+  col += vec3(1.0, 0.85, 0.6) * clamp(totalBridge, 0.0, 1.0) * 0.6;
+
+  // (flare flash removed)
+
+  col = clamp(col, 0.0, 2.0);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ─── SUN SPHERE ─────────────────────────────────────────────────────────────
+const sunGeo = new THREE.SphereGeometry(SUN_R, 128, 64);
+const sunMat = new THREE.ShaderMaterial({
+  vertexShader: sunVert,
+  fragmentShader: sunFrag,
+  uniforms: {
+    uTime:       { value: 0 },
+    uSpotPos:    { value: uSpotPos },
+    uSpotRadius: { value: uSpotRadius },
+    uSpotEnergy: { value: uSpotEnergy },
+    uSpotPol:    { value: uSpotPol },
+    uSpotFlash:  { value: uSpotFlash },
+  }
+});
+const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+pivot.add(sunMesh);
+
+// ─── MAGNETOSPHERE SHELL ─────────────────────────────────────────────────────
+// Oblate spheroid — compressed at poles (solar wind flattens it)
+const magVert = `
+varying vec3 vViewNormal;
+void main(){
+  vViewNormal = normalize((modelViewMatrix * vec4(normal,0.0)).xyz);
+  // Oblate: squash Y axis slightly
+  vec3 p = vec3(position.x, position.y * 0.78, position.z);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p * ${MAG_R.toFixed(1)} / 80.0, 1.0);
+}`;
+const magFrag = `
+varying vec3 vViewNormal;
+void main(){
+  float rim = 1.0 - abs(dot(vViewNormal, vec3(0.0,0.0,1.0)));
+  rim = pow(rim, 2.5);
+  gl_FragColor = vec4(0.15, 0.4, 0.9, rim * 0.18);
+}`;
+const magGeo  = new THREE.SphereGeometry(SUN_R, 64, 32);
+const magMat  = new THREE.ShaderMaterial({
+  vertexShader: magVert, fragmentShader: magFrag,
+  transparent: true, depthWrite: false, side: THREE.FrontSide,
+  blending: THREE.AdditiveBlending
+});
+const magMesh = new THREE.Mesh(magGeo, magMat);
+pivot.add(magMesh);
+
+// Inner shell (field lines layer)
+const magMat2 = new THREE.ShaderMaterial({
+  vertexShader: magVert, fragmentShader: `
+  varying vec3 vViewNormal;
+  void main(){
+    float rim = 1.0 - abs(dot(vViewNormal, vec3(0.0,0.0,1.0)));
+    rim = pow(rim, 4.0);
+    gl_FragColor = vec4(0.05, 0.15, 0.5, rim * 0.08);
+  }`,
+  transparent: true, depthWrite: false, side: THREE.BackSide,
+  blending: THREE.AdditiveBlending
+});
+const magMesh2 = new THREE.Mesh(magGeo, magMat2);
+pivot.add(magMesh2);
+
+// ─── BIPOLAR SUNSPOT SYSTEM WITH LIFECYCLE ───────────────────────────────────
+// Phases: 0=EMERGING, 1=MATURE, 2=DECAYING, 3=DEAD
+// Shader reads positions, radii, energies, polarities as uniforms
+
+const sunspotPairs = [
+  { lat: 12,  lonP: 25,  lonN: 50,  strength: 1.0 },
+  { lat: -14, lonP: 115, lonN: 140, strength: 0.85 },
+  { lat: 20,  lonP: 195, lonN: 220, strength: 1.2 },
+  { lat: -8,  lonP: 285, lonN: 310, strength: 0.9 },
+  { lat: 16,  lonP: 55,  lonN: 80,  strength: 0.75 },
+  { lat: -20, lonP: 160, lonN: 185, strength: 1.1 },
+];
+
+function makeSunspot(polarity, lat, lon, strength, pairId, midLat, midLon, driftLat, driftLon) {
+  // Spots start at the PIL midpoint and drift outward as they mature
+  const phi = (90 - midLat) * DEG, theta = midLon * DEG;
+  const nx = Math.sin(phi)*Math.cos(theta);
+  const ny = Math.cos(phi);
+  const nz = Math.sin(phi)*Math.sin(theta);
+  return {
+    polarity, strength, pairId,
+    // Current position (starts at midpoint, drifts to final)
+    curLat: midLat, curLon: midLon,
+    // PIL midpoint (emerge here)
+    midLat, midLon,
+    // Final mature position (drifted apart)
+    finalLat: lat, finalLon: lon,
+    nx, ny, nz,
+    x: SUN_R*nx, y: SUN_R*ny, z: SUN_R*nz,
+    phase: 0, age: 0,
+    radius: 0.0,
+    energy: 0,
+    emergeDur:  6  + Math.random() * 4,
+    matureDur:  35 + Math.random() * 25,
+    decayDur:   10 + Math.random() * 8,
+    flashing: 0,
+  };
+}
+
+const sunspots = [];
+for (const pair of sunspotPairs) {
+  // Midpoint between the two spots = PIL
+  const midLon = (pair.lonP + pair.lonN) * 0.5;
+  const midLat = pair.lat;
+  sunspots.push(makeSunspot(+1, pair.lat, pair.lonP, pair.strength, sunspots.length >> 1, midLat, midLon));
+  sunspots.push(makeSunspot(-1, pair.lat, pair.lonN, pair.strength, (sunspots.length-1) >> 1, midLat, midLon));
+}
+
+// ─── SHADER UNIFORM ARRAYS already declared at top ───────────────────────────
+
+// Populate initial uniform data now that sunspots exist
+function buildSpotUniforms() {
+  for (let i = 0; i < MAX_SPOTS; i++) {
+    const sp = sunspots[i];
+    if (!sp || sp.phase === 3) {
+      uSpotRadius[i] = 0; uSpotEnergy[i] = 0; uSpotFlash[i] = 0;
+      uSpotPos[i*3]=0; uSpotPos[i*3+1]=1; uSpotPos[i*3+2]=0;
+      uSpotPol[i] = 1;
+      continue;
+    }
+    uSpotPos[i*3]   = sp.nx; uSpotPos[i*3+1] = sp.ny; uSpotPos[i*3+2] = sp.nz;
+    uSpotRadius[i]  = sp.radius * 0.10 * sp.strength; // much smaller angular radius
+    uSpotEnergy[i]  = sp.energy;
+    uSpotPol[i]     = sp.polarity;
+    uSpotFlash[i]   = sp.flashing;
+  }
+}
+buildSpotUniforms(); // init now that sunspots array exists
+
+// Sunspot visual point sprites — updated each frame
+const spotGeo = new THREE.BufferGeometry();
+const spotPosArr = new Float32Array(MAX_SPOTS * 3);
+const spotColArr = new Float32Array(MAX_SPOTS * 3);
+spotGeo.setAttribute('position', new THREE.BufferAttribute(spotPosArr, 3));
+spotGeo.setAttribute('color',    new THREE.BufferAttribute(spotColArr, 3));
+const spotMat = new THREE.PointsMaterial({
+  vertexColors: true, size: 5, transparent: true, opacity: 0.85,
+  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
+});
+pivot.add(new THREE.Points(spotGeo, spotMat));
+
+function updateSpotVisuals() {
+  for (let i = 0; i < MAX_SPOTS; i++) {
+    const sp = sunspots[i];
+    if (!sp || sp.phase === 3) {
+      spotColArr[i*3]=0; spotColArr[i*3+1]=0; spotColArr[i*3+2]=0;
+      spotPosArr[i*3]=0; spotPosArr[i*3+1]=0; spotPosArr[i*3+2]=0;
+      continue;
+    }
+    const e = sp.energy, r = sp.radius;
+    const flash = sp.flashing;
+    spotPosArr[i*3]   = sp.x * 1.003;
+    spotPosArr[i*3+1] = sp.y * 1.003;
+    spotPosArr[i*3+2] = sp.z * 1.003;
+    if (sp.polarity > 0) {
+      spotColArr[i*3]   = 0.1 + e*0.15 + flash*0.3;
+      spotColArr[i*3+1] = 0.2 + e*0.15 + flash*0.2;
+      spotColArr[i*3+2] = 0.5 * r       + flash*0.2;
+    } else {
+      spotColArr[i*3]   = 0.4 * r       + flash*0.3;
+      spotColArr[i*3+1] = 0.02 + e*0.08 + flash*0.1;
+      spotColArr[i*3+2] = 0.15 + e*0.1;
+    }
+  }
+  spotGeo.attributes.position.needsUpdate = true;
+  spotGeo.attributes.color.needsUpdate    = true;
+}
+
+// ─── SUNSPOT LIFECYCLE UPDATE ─────────────────────────────────────────────────
+let nextSpawnCheck = 20;
+let loopResetTimer  = 120; // full sim reset every ~120s
+
+function updateSpotPosition(sp, t) {
+  // Interpolate between PIL midpoint and final position based on lifecycle
+  let driftT = 0;
+  if (sp.phase === 0) driftT = sp.age / sp.emergeDur;           // 0→1 during emerge
+  else if (sp.phase === 1) driftT = 1.0;                        // fully drifted at mature
+  else if (sp.phase === 2) driftT = 1.0 - sp.age / sp.decayDur; // 1→0, converge back to PIL
+  else driftT = 0;
+
+  driftT = Math.max(0, Math.min(1, driftT));
+  // Smooth ease
+  driftT = driftT * driftT * (3 - 2 * driftT);
+
+  const lat = sp.midLat + (sp.finalLat - sp.midLat) * driftT;
+  const lon = sp.midLon + (sp.finalLon - sp.midLon) * driftT;
+
+  const phi = (90 - lat) * DEG, theta = lon * DEG;
+  sp.nx = Math.sin(phi)*Math.cos(theta);
+  sp.ny = Math.cos(phi);
+  sp.nz = Math.sin(phi)*Math.sin(theta);
+  sp.x  = SUN_R * sp.nx;
+  sp.y  = SUN_R * sp.ny;
+  sp.z  = SUN_R * sp.nz;
+}
+
+function updateSunspots(t, dt) {
+  for (let i = 0; i < sunspots.length; i++) {
+    const sp = sunspots[i];
+    sp.age += dt;
+    sp.flashing = Math.max(0, sp.flashing - dt * 3.0);
+
+    if (sp.phase === 0) {
+      sp.radius = Math.min(1.0, sp.age / sp.emergeDur);
+      sp.energy = sp.radius * 0.35;
+      updateSpotPosition(sp, t);
+      if (sp.age >= sp.emergeDur) { sp.phase = 1; sp.age = 0; }
+
+    } else if (sp.phase === 1) {
+      sp.radius = 1.0;
+      // Gentle pulse — low amplitude so it doesn't blast bright
+      sp.energy = 0.3 + 0.25 * Math.abs(Math.sin(t * 0.08 * sp.strength + i * 1.37));
+      updateSpotPosition(sp, t);
+      if (sp.age >= sp.matureDur) { sp.phase = 2; sp.age = 0; }
+
+    } else if (sp.phase === 2) {
+      const decay = sp.age / sp.decayDur;
+      sp.radius = Math.max(0.0, 1.0 - decay * decay); // quadratic fade — penumbra goes first
+      sp.energy = sp.radius * 0.2;
+      updateSpotPosition(sp, t); // converges back to PIL
+      if (sp.age >= sp.decayDur) { sp.phase = 3; }
+    }
+  }
+
+  // Respawn dead pairs
+  const deadPairs = new Set();
+  for (const sp of sunspots) { if (sp.phase === 3) deadPairs.add(sp.pairId); }
+  if (deadPairs.size >= 1 && t > nextSpawnCheck) {
+    const deadPairId = [...deadPairs][0];
+    const lat     = (Math.random() - 0.5) * 40;
+    const lonBase = Math.random() * 360;
+    const sep     = 18 + Math.random() * 14;
+    const strength= 0.6 + Math.random() * 0.5;
+    const newId   = Math.max(...sunspots.map(s => s.pairId)) + 1;
+    const midLon  = lonBase + sep * 0.5;
+
+    for (let i = 0; i < sunspots.length; i++) {
+      if (sunspots[i].pairId === deadPairId && sunspots[i].polarity === 1) {
+        sunspots[i] = makeSunspot(+1, lat, lonBase,       strength, newId, lat, midLon);
+      } else if (sunspots[i].pairId === deadPairId && sunspots[i].polarity === -1) {
+        sunspots[i] = makeSunspot(-1, lat, lonBase + sep, strength, newId, lat, midLon);
+      }
+    }
+    nextSpawnCheck = t + 12 + Math.random() * 18;
+  }
+
+  // ── Loop self-reset: rebase t-dependent things periodically ──────────────────
+  // We don't reset t itself (breaks lifecycle ages), but we rebase the sin phase
+  // by keeping t modulo a long period for the shader uTime only — handled in animate.
+
+  buildSpotUniforms();
+  updateSpotVisuals();
+  sunMat.uniforms.uSpotPos.value    = uSpotPos;
+  sunMat.uniforms.uSpotRadius.value = uSpotRadius;
+  sunMat.uniforms.uSpotEnergy.value = uSpotEnergy;
+  sunMat.uniforms.uSpotPol.value    = uSpotPol;
+  sunMat.uniforms.uSpotFlash.value  = uSpotFlash;
+}
+
+// ─── GPU HAIR SYSTEM — shader-driven, 500k hairs ─────────────────────────────
+// All hair geometry computed in vertex shader. CPU only stores seed data in texture.
+// DataTexture: each hair = 2 RGBA pixels
+//   px0: anchorNormal.xyz, phase
+//   px1: freq, amp, length, energy (updated CPU→GPU each frame)
+
+const HAIR_COUNT     = 500000;
+const HAIR_SEGS      = 4;           // keep low — GPU bound not vertex bound
+const VERTS_PER_HAIR = HAIR_SEGS + 1;
+const IDX_PER_HAIR   = HAIR_SEGS * 2;
+
+// Texture dimensions — 2 pixels per hair, pack into square-ish texture
+const TEX_HAIR_W = 1024;
+const TEX_HAIR_H = Math.ceil(HAIR_COUNT * 2 / TEX_HAIR_W);
+const TEX_SIZE   = TEX_HAIR_W * TEX_HAIR_H;
+
+const hairTexData = new Float32Array(TEX_SIZE * 4); // RGBA float
+
+// Per-hair CPU state for energy/discharge (tiny arrays, just scalars)
+const hairEnergy     = new Float32Array(HAIR_COUNT);
+const hairMaxE       = new Float32Array(HAIR_COUNT);
+const hairSpot       = new Int32Array(HAIR_COUNT);
+const hairPolarity   = new Int8Array(HAIR_COUNT);
+const hairDischarged = new Uint8Array(HAIR_COUNT);
+// Precomputed magnetic target direction (toward opposite polarity spot)
+const hairTargX      = new Float32Array(HAIR_COUNT);
+const hairTargY      = new Float32Array(HAIR_COUNT);
+const hairTargZ      = new Float32Array(HAIR_COUNT);
+
+// DataTexture — uploaded once for static data, each frame for energy column
+const hairTex = new THREE.DataTexture(
+  hairTexData, TEX_HAIR_W, TEX_HAIR_H,
+  THREE.RGBAFormat, THREE.FloatType
+);
+hairTex.needsUpdate = true;
+
+// Index buffer: pairs of adjacent vertex indices per segment
+const hairIndices = new Uint32Array(HAIR_COUNT * IDX_PER_HAIR);
+for (let h = 0; h < HAIR_COUNT; h++) {
+  const vb = h * VERTS_PER_HAIR, ib = h * IDX_PER_HAIR;
+  for (let s = 0; s < HAIR_SEGS; s++) {
+    hairIndices[ib + s*2]   = vb + s;
+    hairIndices[ib + s*2+1] = vb + s + 1;
+  }
+}
+
+// Vertex ID buffer — each vertex just knows its index, shader does the rest
+const vertIds = new Float32Array(HAIR_COUNT * VERTS_PER_HAIR);
+for (let i = 0; i < vertIds.length; i++) vertIds[i] = i;
+
+const hairGeo = new THREE.BufferGeometry();
+hairGeo.setAttribute('vertId', new THREE.BufferAttribute(vertIds, 1));
+hairGeo.setIndex(new THREE.BufferAttribute(hairIndices, 1));
+
+// Hair vertex shader — ALL geometry computed here, zero CPU position uploads
+const hairVert = `
+attribute float vertId;
+uniform sampler2D uHairTex;
+uniform float uTime;
+uniform float uSunR;
+uniform int   uSegs;
+uniform int   uTexW;
+
+varying vec3 vColor;
+
+vec4 texel(int pixelIdx) {
+  int row = pixelIdx / uTexW;
+  int col = pixelIdx - row * uTexW;
+  return texture2D(uHairTex, (vec2(float(col), float(row)) + 0.5) / vec2(float(uTexW), float(uTexW)));
+}
+
+void main() {
+  int vi      = int(vertId);
+  int hairIdx = vi / (uSegs + 1);
+  int seg     = vi - hairIdx * (uSegs + 1);
+  float sf    = float(seg) / float(uSegs);
+
+  // Read seed data from texture
+  int px0 = hairIdx * 2;
+  int px1 = px0 + 1;
+  vec4 d0 = texel(px0); // nx,ny,nz,phase
+  vec4 d1 = texel(px1); // freq,amp,len,energy
+
+  vec3 norm  = d0.xyz;
+  float ph   = d0.w;
+  float freq = d1.x;
+  float amp  = d1.y;
+  float len  = d1.z;
+  float e    = d1.w;
+
+  // Tangent frame — stable cross product
+  vec3 up  = abs(norm.y) < 0.99 ? vec3(0.0,1.0,0.0) : vec3(1.0,0.0,0.0);
+  vec3 tang  = normalize(cross(norm, up));
+  vec3 bitan = cross(norm, tang);
+
+  // Base position: surface + outward along normal
+  vec3 anchor = norm * uSunR;
+  vec3 pos    = anchor + norm * sf * len;
+
+  // Nanoswitchback oscillation — two frequencies
+  float w1 = sin(sf * freq * 3.14159 + uTime * 2.0 + ph) * amp * e;
+  float w2 = sin(sf * freq * 2.1 * 3.14159 + uTime * 3.0 + ph + 2.3) * amp * 0.3 * e;
+  pos += tang * w1 + bitan * w2;
+
+  // Soft clamp to surface band
+  float dist = length(pos);
+  float maxR = uSunR + len * 1.1;
+  float minR = uSunR + 0.08;
+  if (dist > maxR) pos *= maxR / dist;
+  if (dist < minR) pos *= minR / dist;
+
+  // Color by energy and polarity — packed in energy sign (positive=+pol, negative=-pol)
+  float polSign = sign(e + 0.001); // always + since energy >= 0, so use separate channel
+  float heat = sf * e;
+  // px1.w encodes polarity in sign: energy stored as abs(e), polarity as sign bit... 
+  // Actually read polarity from a separate encoding: we'll use amp sign
+  float pol = sign(d1.y); // amp stored positive for +pol, negative for -pol
+  if (pol >= 0.0) {
+    vColor = vec3(0.25 + heat*0.5, 0.45 + heat*0.4, 0.8 + heat*0.2);
+  } else {
+    vColor = vec3(0.65 + heat*0.3, 0.05 + heat*0.25, 0.25 + heat*0.2);
+  }
+  vColor *= (0.3 + e * 0.7); // dim when low energy
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}`;
+
+const hairFrag = `
+varying vec3 vColor;
+void main() {
+  gl_FragColor = vec4(vColor, 1.0);
+}`;
+
+const hairMat = new THREE.ShaderMaterial({
+  vertexShader: hairVert,
+  fragmentShader: hairFrag,
+  uniforms: {
+    uHairTex: { value: hairTex },
+    uTime:    { value: 0 },
+    uSunR:    { value: SUN_R },
+    uSegs:    { value: HAIR_SEGS },
+    uTexW:    { value: TEX_HAIR_W },
+  },
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+pivot.add(new THREE.LineSegments(hairGeo, hairMat));
+
+// ─── HAIR INIT — Fibonacci sphere for uniform surface coverage ────────────────
+function initHair(i) {
+  // Fibonacci sphere: perfectly uniform distribution
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const y  = 1 - (i / (HAIR_COUNT - 1)) * 2;
+  const r  = Math.sqrt(Math.max(0, 1 - y*y));
+  const theta = goldenAngle * i;
+  const nx = r * Math.cos(theta);
+  const ny = y;
+  const nz = r * Math.sin(theta);
+
+  // Find nearest sunspot for polarity assignment
+  let bestD = Infinity, bestSI = 0;
+  for (let j = 0; j < sunspots.length; j++) {
+    if (sunspots[j].phase === 3) continue;
+    const dx=sunspots[j].nx-nx, dy=sunspots[j].ny-ny, dz=sunspots[j].nz-nz;
+    const d=dx*dx+dy*dy+dz*dz;
+    if (d < bestD) { bestD=d; bestSI=j; }
+  }
+  const sp = sunspots[bestSI];
+  hairSpot[i]     = bestSI;
+  hairPolarity[i] = sp.polarity;
+
+  // Find opposite polarity target
+  let bestOpp = -1, bestOppD = Infinity;
+  for (let j = 0; j < sunspots.length; j++) {
+    if (sunspots[j].polarity === sp.polarity || sunspots[j].phase === 3) continue;
+    const dx=sunspots[j].nx-nx, dy=sunspots[j].ny-ny, dz=sunspots[j].nz-nz;
+    const d=dx*dx+dy*dy+dz*dz;
+    if (d < bestOppD) { bestOppD=d; bestOpp=j; }
+  }
+  if (bestOpp >= 0) {
+    const dx=sunspots[bestOpp].nx-nx, dy=sunspots[bestOpp].ny-ny, dz=sunspots[bestOpp].nz-nz;
+    const dl=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
+    hairTargX[i]=dx/dl; hairTargY[i]=dy/dl; hairTargZ[i]=dz/dl;
+  }
+
+  const phase  = (i * 0.618033988749) % (Math.PI * 2); // golden ratio phase spread
+  const freq   = 3.5 + (i % 7) * 0.5;
+  const amp    = 0.05 + (i % 13) * 0.008;
+  const len    = 0.5 + (i % 11) * 0.09;  // very short hairs
+  // Encode polarity in amp sign for shader
+  const ampEnc = sp.polarity > 0 ? amp : -amp;
+
+  hairEnergy[i]     = (i % 100) / 100; // stagger initial energies
+  hairMaxE[i]       = 0.5 + (i % 7) * 0.07;
+  hairDischarged[i] = 0;
+
+  // Write to texture: px0 = norm + phase, px1 = freq, ampEnc, len, energy
+  const px0 = i * 2;
+  const px1 = px0 + 1;
+  const off0 = px0 * 4, off1 = px1 * 4;
+  hairTexData[off0]   = nx;
+  hairTexData[off0+1] = ny;
+  hairTexData[off0+2] = nz;
+  hairTexData[off0+3] = phase;
+  hairTexData[off1]   = freq;
+  hairTexData[off1+1] = ampEnc;
+  hairTexData[off1+2] = len;
+  hairTexData[off1+3] = hairEnergy[i];
+}
+
+// Init all hairs — Fibonacci distribution across full sphere
+console.log('Initializing', HAIR_COUNT, 'GPU hairs...');
+for (let i = 0; i < HAIR_COUNT; i++) initHair(i);
+hairTex.needsUpdate = true;
+console.log('Hair init done.');
+
+// ─── HAIR UPDATE — only energy column needs CPU→GPU each frame ────────────────
+const dischargedList = [];
+// We only update the energy value (px1.w) in the texture each frame
+// Static data (px0, px1.xyz) never changes after init
+
+function updateHairs(t) {
+  dischargedList.length = 0;
+  let texDirty = false;
+
+  for (let i = 0; i < HAIR_COUNT; i++) {
+    const sp = sunspots[hairSpot[i]];
+    const rate = sp && sp.phase !== 3 ? 0.00035 * sp.strength : 0.0001;
+    hairEnergy[i] += rate;
+    if (hairEnergy[i] >= hairMaxE[i]) {
+      hairEnergy[i] = hairMaxE[i];
+      if (!hairDischarged[i]) { hairDischarged[i]=1; dischargedList.push(i); }
+    }
+
+    // Write energy into texture px1.w
+    const px1off = (i * 2 + 1) * 4;
+    hairTexData[px1off + 3] = hairEnergy[i];
+    texDirty = true;
+  }
+
+  if (texDirty) hairTex.needsUpdate = true;
+  hairMat.uniforms.uTime.value = t % 600;
+}
+
+// ─── PROMINENCE CLASS — small, thin, surface-hugging ─────────────────────────
+class Prominence {
+  constructor(anchor1, anchor2, energy, polarity) {
+    this.anchor1  = anchor1.clone();
+    this.anchor2  = anchor2.clone();
+    this.energy   = energy;
+    this.polarity = polarity || 1;
+    this.age      = 0;
+    this.maxAge   = 4 + Math.random() * 5;
+    this.threads  = [];
+
+    // Apex very close to surface — 10x smaller than before
+    const mid    = anchor1.clone().add(anchor2).multiplyScalar(0.5);
+    const outDir = mid.clone().normalize();
+    const height = 2 + energy * 5 + Math.random() * 3; // was 30-100, now 2-10
+    this.apex    = mid.clone().add(outDir.multiplyScalar(height));
+
+    this._buildThreads();
+  }
+
+  _buildThreads() {
+    const count = 3; // fewer threads — thinner
+    for (let th = 0; th < count; th++) {
+      const offset = (th / count - 0.5) * 1.5; // tighter spread
+      const perpDir = new THREE.Vector3().crossVectors(
+        this.anchor2.clone().sub(this.anchor1),
+        this.apex.clone().sub(this.anchor1)
+      ).normalize().multiplyScalar(offset);
+
+      const segments = 20; // fewer segments
+      const positions = [], colors = [];
+      for (let i = 0; i <= segments; i++) {
+        positions.push(0, 0, 0);
+        const s = i / segments;
+        const fromBlue = this.polarity > 0 ? s : 1 - s;
+        colors.push(0.5 + fromBlue*0.4, 0.2 + fromBlue*0.3, 1.0 - fromBlue*0.6);
+      }
+
+      const geo    = new THREE.BufferGeometry();
+      const posAttr= new THREE.Float32BufferAttribute(positions, 3);
+      geo.setAttribute('position', posAttr);
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      const mat = new THREE.LineBasicMaterial({
+        vertexColors: true, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const line = new THREE.Line(geo, mat);
+      pivot.add(line);
+      this.threads.push({ geo, posAttr, mat, line, offset: perpDir });
+    }
+  }
+
+  update(t) {
+    this.age += 0.016;
+    const lr    = this.age / this.maxAge;
+    const alpha = lr < 0.1 ? lr/0.1 : lr > 0.7 ? (1-lr)/0.3 : 1;
+    const a1 = this.anchor1, a2 = this.anchor2, ap = this.apex;
+
+    for (let ti = 0; ti < this.threads.length; ti++) {
+      const thread  = this.threads[ti];
+      const segments= 20;
+      const pos     = thread.posAttr.array;
+
+      for (let i = 0; i <= segments; i++) {
+        const s = i / segments, inv = 1 - s;
+        let px = inv*inv*a1.x + 2*inv*s*ap.x + s*s*a2.x;
+        let py = inv*inv*a1.y + 2*inv*s*ap.y + s*s*a2.y;
+        let pz = inv*inv*a1.z + 2*inv*s*ap.z + s*s*a2.z;
+
+        const twist = Math.sin(s*Math.PI*3 + t*1.2 + ti*1.05) * 1.2 * this.energy;
+        const cx = ap.y*pz-ap.z*py, cy = ap.z*px-ap.x*pz, cz = ap.x*py-ap.y*px;
+        const cl = Math.sqrt(cx*cx+cy*cy+cz*cz)||1;
+        px += (cx/cl)*twist + thread.offset.x;
+        py += (cy/cl)*twist + thread.offset.y;
+        pz += (cz/cl)*twist + thread.offset.z;
+
+        // Keep close to surface
+        const dist = Math.sqrt(px*px+py*py+pz*pz);
+        if (dist > MAG_R) { const sc=MAG_R/dist; px*=sc; py*=sc; pz*=sc; }
+        if (dist < SUN_R) { const sc=SUN_R/dist; px*=sc; py*=sc; pz*=sc; }
+
+        pos[i*3]=px; pos[i*3+1]=py; pos[i*3+2]=pz;
+      }
+      thread.posAttr.needsUpdate = true;
+      thread.mat.opacity = alpha * (0.4 + ti * 0.1);
+    }
+    return lr >= 1;
+  }
+
+  dispose() {
+    for (const th of this.threads) {
+      pivot.remove(th.line); th.geo.dispose(); th.mat.dispose();
+    }
+  }
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+let prominences = [];
+
+// ─── PROMINENCE SPAWNER — only between opposite-polarity sunspot pairs ────────
+// NOT auto-triggered by hair discharge — prominences are rarer, deliberate events
+function trySpawnProminence(fromSpotIdx) {
+  const sp  = sunspots[fromSpotIdx];
+  if (!sp || sp.phase !== 1) return; // only from mature spots
+  const a1  = new THREE.Vector3(sp.x, sp.y, sp.z);
+
+  // Find nearest opposite-polarity mature spot
+  let bestSI = -1, bestD = Infinity;
+  for (let j = 0; j < sunspots.length; j++) {
+    if (j === fromSpotIdx) continue;
+    if (sunspots[j].polarity === sp.polarity) continue;
+    if (sunspots[j].phase !== 1) continue;
+    const dx=sunspots[j].x-sp.x, dy=sunspots[j].y-sp.y, dz=sunspots[j].z-sp.z;
+    const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if (d < bestD && d < 90) { bestD=d; bestSI=j; }
+  }
+  if (bestSI < 0) return;
+
+  const sp2 = sunspots[bestSI];
+  const a2  = new THREE.Vector3(sp2.x, sp2.y, sp2.z);
+  prominences.push(new Prominence(a1, a2, sp.energy, sp.polarity));
+}
+
+// ─── STARS ───────────────────────────────────────────────────────────────────
+const starGeo = new THREE.BufferGeometry();
+const starPos = [];
+for (let i = 0; i < 2000; i++) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const r = 800 + Math.random() * 400;
+  starPos.push(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+}
+starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.6 });
+scene.add(new THREE.Points(starGeo, starMat));
+
+// ─── AMBIENT LIGHT ───────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xff4400, 0.5));
+const pointLight = new THREE.PointLight(0xffcc88, 2, 500);
+scene.add(pointLight);
+
+let t = 0;
+let prevT = 0;
+let hairReseedTimer   = 0;
+let prominenceTimer   = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.016;
+  const dt = t - prevT;
+  prevT = t;
+
+  pivot.rotation.y = rotY;
+  pivot.rotation.x = rotX;
+  sunMat.uniforms.uTime.value = t % 600;
+  rotY += 0.0008;
+
+  updateSunspots(t, dt);
+  updateHairs(t);
+
+  // Hair discharge — reset energy only, NO auto prominence
+  for (const idx of dischargedList) {
+    const si = hairSpot[idx];
+    if (sunspots[si] && sunspots[si].phase === 1) sunspots[si].flashing = 0.5;
+    hairEnergy[idx]     = 0;
+    hairDischarged[idx] = 0;
+    hairMaxE[idx]       = 0.4 + (idx % 7) * 0.085;
+  }
+
+  // Prominences spawn periodically from sunspot pairs — not from individual hairs
+  prominenceTimer += dt;
+  if (prominenceTimer > 6 + Math.random() * 4) {
+    const matureSpots = sunspots.filter((s,i) => s.phase === 1);
+    if (matureSpots.length >= 2) {
+      const si = sunspots.findIndex(s => s.phase === 1);
+      if (si >= 0) trySpawnProminence(si);
+    }
+    prominenceTimer = 0;
+  }
+
+  // Reseed hair texture every 60s so hairs track drifted spots
+  hairReseedTimer += dt;
+  if (hairReseedTimer > 60) {
+    for (let i = 0; i < HAIR_COUNT; i++) initHair(i);
+    hairTex.needsUpdate = true;
+    hairReseedTimer = 0;
+  }
+
+  // Cap prominences
+  if (prominences.length > 20) {
+    prominences.splice(0, prominences.length - 20).forEach(p => p.dispose());
+  }
+
+  prominences = prominences.filter(p => {
+    const done = p.update(t);
+    if (done) p.dispose();
+    return !done;
+  });
+
+  document.getElementById('s-sb').textContent = dischargedList.length;
+  document.getElementById('s-pr').textContent = prominences.length;
+  document.getElementById('s-sp').textContent = sunspots.filter(s=>s.phase===1).length;
+  document.getElementById('s-sd').textContent = sunspots.filter(s=>s.phase===2).length;
+  document.getElementById('s-t').textContent  = (t % 600).toFixed(1);
+
+  renderer.render(scene, camera);
+}
+
+animate();
+</script>
+</body>
+</html>
